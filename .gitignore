@@ -20,5 +20,8 @@ passwords.py
 # Python package metadata
 *.egg-info/
 
-# Old verssion prior to commit
+# Old version prior to commit
 __old_versions/
+
+# temp files
+*temp
