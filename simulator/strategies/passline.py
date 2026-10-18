@@ -37,4 +37,5 @@ class PassLineStrategy(Strategy):
             value=self.amount,
         )
 
-        game.place_wager(wager)
+        if self.player.bankroll >= self.amount:
+            game.place_wager(wager)

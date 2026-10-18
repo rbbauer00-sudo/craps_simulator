@@ -16,6 +16,7 @@ class GameRollResult:
     wager_results: tuple[WagerResult, ...]
     point_before: int | None
     point_after: int | None
+    shooter_id: int | None
     shooter_roll_count: int
     seven_out: bool
 
@@ -49,7 +50,11 @@ class Game:
             if settings is not None 
             else GameSettings()
         )
+
         self._shooter_roll_count: int = 0
+        self._shooter: Player | None = None
+        self._next_player_id: int = 0
+        self._next_wager_id: int = 0
 
     @property
     def settings(self) -> GameSettings:
@@ -70,6 +75,10 @@ class Game:
     @property
     def shooter_roll_count(self) -> int:
         return self._shooter_roll_count
+
+    @property
+    def dice(self):
+        return self._dice
 
 
     def reset(
@@ -96,42 +105,67 @@ class Game:
         self._players.clear()
         self._point = None
         self._shooter_roll_count = 0
+        self._shooter = None
 
         self._dice = new_dice
         self._settings = new_settings
 
-    
+    @property
+    def shooter(self) -> Player | None:
+        return self._shooter
+
+    def _advance_shooter(self) -> Player | None:
+        if not self.players:
+            self._shooter = None
+            return None
+
+        elif self._shooter not in self.players:
+            self._shooter = self.players[0]
+            return self._shooter
+
+        current_index = self.players.index(self._shooter)
+        next_index = (current_index + 1) % len(self.players)
+       
+        self._shooter = self.players[next_index]
+        return self._shooter
+
     def add_player(
         self,
         name: str | None = None,
         bankroll: int = 1500,
     ) -> Player:
         
-        index = len(self.players)
+        player_id = self._next_player_id
+        self._next_player_id += 1
         
-        name = (
-            name
-            or f"Player {index}"
-        )
-
-
         player = Player(
             game=self,
-            name=name,
+            name=name or f"Player {player_id}",
             bankroll=bankroll,
-            index=index
+            player_id=player_id,
         )
+
         self._players.append(player)
+        if self.shooter is None:
+            self._advance_shooter()
         return player
 
 
     def remove_player(self, player: Player) -> PlayerResult:
+        
         if player not in self.players:
             raise ValueError(
                 "Cannot remove unregistered "
                 f"player: {player}."
             )
-    
+
+        # record previous shooter index
+        old_index = (
+            self._players.index(player)
+            if player is self._shooter
+            else None
+        )
+
         # Take down odds wagers first
         for wager in player.get_wagers().copy():
             if (
@@ -171,9 +205,12 @@ class Game:
 
         self._players.remove(player)
 
-        # Reindex remaining players
-        for idx, player in enumerate(self.players): 
-            player._index = idx
+        if not self._players:
+            self._shooter = None
+
+        elif old_index is not None:
+            next_index = old_index % len(self._players)
+            self._shooter = self._players[next_index]
 
         return result
 
@@ -201,7 +238,11 @@ class Game:
             )
 
         wager.definition.placement_rule(wager)
-        
+
+        if wager.id is not None:
+            raise ValueError(
+                f"Wager {wager.id} has already been placed."
+            )
         
         # Charge vig to player, if applicable
         wager_type = wager.definition.wager_type
@@ -220,7 +261,10 @@ class Game:
 
         wager.player.withdraw(wager.value + up_front_vig)
         wager.collected_vig += up_front_vig
-        
+
+        wager._id = self._next_wager_id
+        self._next_wager_id += 1
+
         self._wagers.append(wager)
 
 
@@ -577,12 +621,19 @@ class Game:
 
         point_before = self.point
 
+        shooter_id = (
+            self.shooter.id
+            if self.shooter is not None
+            else None
+        )
+
         roll = self._dice.roll(d1, d2)
         self._shooter_roll_count += 1
 
+        completed_shooter_roll_count = self.shooter_roll_count
+
         results = self._get_all_wager_results(roll)
         self._validate_roll_results(results)
-
         self._execute_all_wager_results(results)
 
         self._update_point(roll)
@@ -593,7 +644,8 @@ class Game:
             wager_results=tuple(results),
             point_before=point_before,
             point_after=self.point,
-            shooter_roll_count=self.shooter_roll_count,
+            shooter_id=shooter_id,
+            shooter_roll_count=completed_shooter_roll_count,
             seven_out=(
                 point_before is not None
                 and roll.total == 7
@@ -615,15 +667,19 @@ class Game:
         ) -> None:
 
         roll_total = roll.total
-        
+
+        # Point Hit
         if self.point is not None:
             if roll_total == self.point:
                 self._point = None
-            
+
+            # Seven Out
             if roll_total ==7:
                 self._point = None
                 self._shooter_roll_count = 0
-        
+                self._advance_shooter()
+
+        # Point Established
         elif roll_total in {4,5,6,8,9,10}:
             self._point = roll_total
 

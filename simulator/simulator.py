@@ -1,5 +1,6 @@
 from engine import Game
 from .strategy import Strategy
+from .statistics import Statistics
 
 class Simulator:
     def __init__(
@@ -10,19 +11,23 @@ class Simulator:
         
         self.game = game
         self.strategy = strategy
-        self.roll_count = 0
+        self.statistics = Statistics()
+
+    @property
+    def roll_count(self) -> int:
+        return self.statistics.roll_count
 
     def step(self):
         if self.strategy:
             self.strategy.before_roll(self.game)
         
-        results = self.game.roll()
-        self.roll_count += 1
+        result = self.game.roll()
+        self.statistics.record_roll(result)
 
         if self.strategy:
-            self.strategy.after_roll(self.game, results)
+            self.strategy.after_roll(self.game, result)
             
-        return results
+        return result
 
     def run(self, num_rolls: int) -> None:
         for _ in range(num_rolls):

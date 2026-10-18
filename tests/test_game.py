@@ -6,7 +6,7 @@ from engine.game import Game
 from engine.wager import Wager
 from engine.player import Player
 from engine.dice import RollResult
-from engine.exceptions import GameRuleViolation
+from engine.exceptions import GameRuleViolation, InsufficientFundsError
 from engine.enums import WagerType
 
 
@@ -150,3 +150,88 @@ def test_wager_cannot_be_turned_off(game_setup, definition):
 
     assert wager.is_working is True
 
+
+def test_shooter_advances_on_seven_out():
+    game = Game()
+    player1 = game.add_player()
+    player2 = game.add_player()
+
+    assert game.shooter is player1
+
+    game.roll(2, 2)  # Establish point 4
+    result = game.roll(1, 6)  # Seven-out
+
+    assert result.seven_out is True
+    assert result.shooter_id == player1.id
+    assert result.shooter_roll_count == 2
+
+    assert game.shooter is player2
+    assert game.shooter_roll_count == 0
+    assert game.point is None
+
+
+def test_wager_ids_are_sequential(game_setup):
+    game, player = game_setup
+
+    wager1 = Wager(
+        definition=defs.PASS_LINE,
+        player=player,
+        game=game,
+        value=25,
+    )
+
+    game.place_wager(wager1)
+
+    game.roll(2, 2)  # Establish point 4
+    game.roll(1, 6)  # Seven-out; wager loses
+
+    wager2 = Wager(
+        definition=defs.PASS_LINE,
+        player=player,
+        game=game,
+        value=25,
+    )
+
+    game.place_wager(wager2)
+
+    assert wager1.id == 0
+    assert wager2.id == 1
+    assert game._next_wager_id == 2
+
+
+def test_rejected_wager_does_not_consume_id(game_setup):
+    game, player = game_setup
+
+    wager = Wager(
+        definition=defs.PASS_LINE,
+        player=player,
+        game=game,
+        value=2000,
+    )
+
+    with pytest.raises(InsufficientFundsError):
+        game.place_wager(wager)
+
+    assert wager.id is None
+    assert game._next_wager_id == 0
+    assert not game.wagers
+
+
+def test_wager_id_cannot_be_reused(game_setup):
+    game, player = game_setup
+
+    wager = Wager(
+        definition=defs.PASS_LINE,
+        player=player,
+        game=game,
+        value=25,
+    )
+
+    game.place_wager(wager)
+    game.take_down_wager(wager)
+
+    with pytest.raises(ValueError):
+        game.place_wager(wager)
+
+    assert wager.id == 0
+    assert game._next_wager_id == 1

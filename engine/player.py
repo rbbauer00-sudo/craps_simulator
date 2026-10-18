@@ -14,6 +14,18 @@ class PlayerResult:
     forfeited_value: int
 
 
+@dataclass(frozen=True)
+class PlayerEquity:
+    bankroll: int
+    removable_equity: int
+    reserved_equity: int
+    total_equity: int
+
+    @property
+    def liquid_equity(self) -> int:
+        return self.bankroll + self.removable_equity
+
+
 class Player:
 
     def __init__(
@@ -21,14 +33,22 @@ class Player:
         game: Game, 
         name: str,
         bankroll: int,
-        index: int | None = None
+        player_id: int | None = None
 
     ) -> None:
         
         self._game = game
-        self._index = index
+        self._id = player_id
         self._bankroll = bankroll
         self._name = name
+
+    @property
+    def id(self) -> int:
+        return self._id
+
+    @property
+    def position(self) -> int:
+        return self.game.players.index(self)
 
     @property
     def game(self) -> Game:
@@ -117,6 +137,29 @@ class Player:
             wager for wager in wager_list 
             if wager.player is self
         ]
+
+
+    def get_equity(self) -> PlayerEquity:
+        wagers = self.get_wagers()
+
+        reserved = sum(
+            wager.contract_min or 0
+            for wager in wagers
+        )
+
+        total = (
+            self.bankroll
+            + sum(wager.value for wager in wagers)
+        )
+
+        removable = total - self.bankroll - reserved
+
+        return PlayerEquity(
+            bankroll=self.bankroll,
+            removable_equity=removable,
+            reserved_equity=reserved,
+            total_equity=total,
+        )
 
 
     def __repr__(self):
