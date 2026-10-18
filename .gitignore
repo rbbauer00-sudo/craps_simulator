@@ -24,4 +24,4 @@ passwords.py
 __old_versions/
 
 # temp files
-*temp
+temp*
