@@ -7,11 +7,11 @@ WagerResult objects for the wagers evaluated on that roll.
 import pytest
 from conftest import result_for
 
-from craps_engine import constants as const
-from craps_engine import wager_definitions as defs
-from craps_engine.enums import Resolution, WagerType
-from craps_engine.exceptions import GameRuleViolation
-from craps_engine.wager import Wager
+from engine import constants as const
+from engine import wager_definitions as defs
+from engine.enums import Resolution, WagerType
+from engine.exceptions import GameRuleViolation
+from engine.wager import Wager
 
 
 ATS_CASES = [

@@ -1,13 +1,13 @@
 import pytest
 
-from craps_engine import wager_definitions as defs
-from craps_engine import constants as const
-from craps_engine.game import Game
-from craps_engine.wager import Wager
-from craps_engine.player import Player
-from craps_engine.dice import RollResult
-from craps_engine.exceptions import GameRuleViolation
-from craps_engine.enums import WagerType
+from engine import wager_definitions as defs
+from engine import constants as const
+from engine.game import Game
+from engine.wager import Wager
+from engine.player import Player
+from engine.dice import RollResult
+from engine.exceptions import GameRuleViolation
+from engine.enums import WagerType
 
 
 def test_player_game_creation(game_setup):

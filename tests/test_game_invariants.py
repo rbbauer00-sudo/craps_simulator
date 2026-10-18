@@ -15,10 +15,10 @@ assumes all WIN wagers come down. Accounting tests use bets with no vig.
 import pytest
 from conftest import result_for
 
-from craps_engine import wager_definitions as defs
-from craps_engine.enums import Resolution
-from craps_engine.wager import Wager, WagerResult
-from craps_engine.game import Game
+from engine import wager_definitions as defs
+from engine.enums import Resolution
+from engine.wager import Wager, WagerResult
+from engine.game import Game
 
 
 BOX_NUMBERS = {4, 5, 6, 8, 9, 10}

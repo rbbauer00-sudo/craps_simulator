@@ -2,14 +2,14 @@
 import pytest
 from conftest import result_for
 
-from craps_engine import wager_definitions as defs
-from craps_engine import constants as const
-from craps_engine.dice import RollResult
-from craps_engine.enums import Resolution, WagerType
-from craps_engine.exceptions import GameRuleViolation, InsufficientFundsError
-from craps_engine.game import Game
-from craps_engine.player import Player
-from craps_engine.wager import Wager
+from engine import wager_definitions as defs
+from engine import constants as const
+from engine.dice import RollResult
+from engine.enums import Resolution, WagerType
+from engine.exceptions import GameRuleViolation, InsufficientFundsError
+from engine.game import Game
+from engine.player import Player
+from engine.wager import Wager
 
 
 DEF = defs.HOP_BET

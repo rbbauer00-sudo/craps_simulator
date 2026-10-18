@@ -1,11 +1,11 @@
 import pytest
 from collections.abc import Sequence
 
-from craps_engine.game import Game
-from craps_engine.player import Player
-from craps_engine.wager import Wager, WagerDefinition, WagerResult
-from craps_engine.enums import WagerType
-from craps_engine import wager_rules as rules
+from engine.game import Game
+from engine.player import Player
+from engine.wager import Wager, WagerDefinition, WagerResult
+from engine.enums import WagerType
+from engine import wager_rules as rules
 
 
 

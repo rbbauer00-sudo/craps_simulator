@@ -16,11 +16,11 @@ import random
 import pytest
 from test_game_invariants import assert_game_invariants
 
-from craps_engine import wager_definitions as defs
-from craps_engine.enums import Resolution
-from craps_engine.exceptions import GameRuleViolation
-from craps_engine.wager import Wager, WagerResult
-from craps_engine.game import Game
+from engine import wager_definitions as defs
+from engine.enums import Resolution
+from engine.exceptions import GameRuleViolation
+from engine.wager import Wager, WagerResult
+from engine.game import Game
 
 
 SEED_LONG = 0x1A75

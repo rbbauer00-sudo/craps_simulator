@@ -11,11 +11,11 @@ ATS_TALL, ATS_ALL and FIRE_BET. Adjust aliases if your module differs.
 import pytest
 from conftest import result_for
 
-from craps_engine import wager_definitions as defs
-from craps_engine.enums import Resolution
-from craps_engine.exceptions import GameRuleViolation
-from craps_engine.wager import Wager, WagerResult
-from craps_engine.game import Game
+from engine import wager_definitions as defs
+from engine.enums import Resolution
+from engine.exceptions import GameRuleViolation
+from engine.wager import Wager, WagerResult
+from engine.game import Game
 
 
 def place(game, player, definition, value=5, *, target=None):

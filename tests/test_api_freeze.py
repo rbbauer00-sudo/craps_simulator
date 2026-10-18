@@ -14,13 +14,13 @@ from dataclasses import FrozenInstanceError, replace
 
 import pytest
 
-from craps_engine.dice import RollResult
-from craps_engine.enums import Resolution, VigSetting
-from craps_engine.exceptions import EngineStateError, GameRuleViolation, InsufficientFundsError
-from craps_engine.game import Game, GameRollResult, GameSettings
-from craps_engine.player import PlayerResult
-from craps_engine.wager import Wager, WagerResult
-from craps_engine import wager_definitions as defs
+from engine.dice import RollResult
+from engine.enums import Resolution, VigSetting
+from engine.exceptions import EngineStateError, GameRuleViolation, InsufficientFundsError
+from engine.game import Game, GameRollResult, GameSettings
+from engine.player import PlayerResult
+from engine.wager import Wager, WagerResult
+from engine import wager_definitions as defs
 
 
 def wager_for(game, player, definition, value=25, *, target=None, parent=None):

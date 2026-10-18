@@ -7,12 +7,12 @@ Game.roll(total) returns WagerResult entries including Resolution.NONE.
 import pytest
 from dataclasses import replace
 
-from craps_engine import wager_definitions as defs
-from craps_engine.enums import Resolution, VigSetting, WagerType
-from craps_engine.exceptions import GameRuleViolation, InsufficientFundsError
-from craps_engine.game import Game
-from craps_engine.player import Player
-from craps_engine.wager import Wager
+from engine import wager_definitions as defs
+from engine.enums import Resolution, VigSetting, WagerType
+from engine.exceptions import GameRuleViolation, InsufficientFundsError
+from engine.game import Game
+from engine.player import Player
+from engine.wager import Wager
 
 
 STARTING_BANKROLL = 1500

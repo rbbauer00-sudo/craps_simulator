@@ -8,13 +8,13 @@ points merely established or numbers rolled on comeout.
 import pytest
 from conftest import result_for
 
-from craps_engine import constants as const
-from craps_engine import wager_definitions as defs
-from craps_engine.enums import Resolution, WagerType
-from craps_engine.exceptions import GameRuleViolation
-from craps_engine.wager import Wager, WagerResult
-from craps_engine.game import Game
-from craps_engine.player import Player
+from engine import constants as const
+from engine import wager_definitions as defs
+from engine.enums import Resolution, WagerType
+from engine.exceptions import GameRuleViolation
+from engine.wager import Wager, WagerResult
+from engine.game import Game
+from engine.player import Player
 
 # Make every box point once. Each pair establishes and then makes a point.
 BOX_POINTS = sorted(const.BOX_NUMS)

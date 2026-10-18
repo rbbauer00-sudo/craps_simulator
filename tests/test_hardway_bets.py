@@ -9,11 +9,11 @@ Explicit dice are always passed as separate arguments to game.roll(*dice).
 import pytest
 from conftest import result_for
 
-from craps_engine import wager_definitions as defs
-from craps_engine.dice import RollResult
-from craps_engine.enums import Resolution, WagerType
-from craps_engine.exceptions import GameRuleViolation, InsufficientFundsError
-from craps_engine.wager import Wager
+from engine import wager_definitions as defs
+from engine.dice import RollResult
+from engine.enums import Resolution, WagerType
+from engine.exceptions import GameRuleViolation, InsufficientFundsError
+from engine.wager import Wager
 
 
 DEF = defs.HARDWAY
