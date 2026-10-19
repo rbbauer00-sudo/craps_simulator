@@ -12,11 +12,10 @@ class Simulator:
         
         self.game = game
         self.strategy = strategy
-        self.recorder: SessionRecorder = SessionRecorder()
-        self.roll_count: int = 0
 
         self.recorder = SessionRecorder()
         self.recorder.capture_opening(self.game)
+        self.roll_count: int = 0
 
     def step(self) -> GameRollResult:
 

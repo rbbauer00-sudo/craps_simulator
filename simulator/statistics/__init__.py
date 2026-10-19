@@ -12,6 +12,7 @@ from .records import (
     WagerOutcome, 
     WagerChangeType, 
     WagerChange,
+    SessionFinancialSummary,
 )
 
 #from .experiment_stats import ExperimentStatistics

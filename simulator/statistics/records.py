@@ -94,3 +94,35 @@ class RollRecord:
     wager_outcomes: tuple[WagerOutcome, ...]
 
 
+
+@dataclass(frozen=True)
+class SessionFinancialSummary:
+    player_id: int
+    player_name: str
+
+    roll_count: int
+
+    opening_bankroll: int
+    closing_bankroll: int
+
+    opening_equity: int
+    closing_equity: int
+    net_equity_change: int
+
+    closing_liquid_equity: int
+    closing_reserved_equity: int
+    outstanding_wager_value: int
+
+    maximum_drawdown: int
+    maximum_drawdown_pct: float
+
+    wins: int
+    losses: int
+    pushes: int
+
+    winning_profit: int
+    lost_stakes: int
+    net_resolution_result: int
+
+
+

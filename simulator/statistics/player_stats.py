@@ -52,7 +52,6 @@ class PlayerStatistics:
     def roll_count(self) -> int:
         return len(self._after)
 
-    
 
     @property
     def starting_equity(self) -> int:
@@ -64,13 +63,14 @@ class PlayerStatistics:
             if self._before else 0
         )
 
-
     @property
     def ending_equity(self) -> int:
+        if self._closing_snapshot is not None:
+            return self._closing_snapshot.equity.total_equity
+
         if self._after:
             return self._after[-1].total_equity
 
-        # Session created but no rolls yet.
         if self._opening_snapshot is not None:
             return self._opening_snapshot.equity.total_equity
 
@@ -79,27 +79,37 @@ class PlayerStatistics:
 
     @property
     def equity_curve(self) -> tuple[int, ...]:
-        if not self._after and self._opening_snapshot is None:
+        if (
+            self._opening_snapshot is None
+            and not self._before
+            and self._closing_snapshot is None
+        ):
             return ()
 
-        return (
+        curve = (
             self.starting_equity,
             *self.equity_history,
         )
+
+        if (
+            self._closing_snapshot is not None
+            and curve[-1] != self.ending_equity
+        ):
+            curve += (self.ending_equity,)
+
+        return curve
 
 
     @property
     def net_profit(self) -> int:
         return self.ending_equity - self.starting_equity
     
-
     @property
     def equity_history(self) -> tuple[int, ...]:
         return tuple(
             equity.total_equity
             for equity in self._after
         )
-
 
     @property
     def bankroll_history(self) -> tuple[int, ...]:
@@ -114,8 +124,6 @@ class PlayerStatistics:
             equity.liquid_equity
             for equity in self._after
         )
-
-    
 
     @property
     def peak_equity(self) -> int:
@@ -156,3 +164,31 @@ class PlayerStatistics:
                 )
 
         return largest_pct
+
+
+    @property
+    def closing_bankroll(self) -> int:
+        if self._closing_snapshot is not None:
+            return self._closing_snapshot.equity.bankroll
+
+        if self._after:
+            return self._after[-1].bankroll
+
+        if self._opening_snapshot is not None:
+            return self._opening_snapshot.equity.bankroll
+
+        return 0
+
+
+    @property
+    def closing_liquid_equity(self) -> int:
+        if self._closing_snapshot is not None:
+            return self._closing_snapshot.equity.liquid_equity
+
+        if self._after:
+            return self._after[-1].liquid_equity
+
+        if self._opening_snapshot is not None:
+            return self._opening_snapshot.equity.liquid_equity
+
+        return 0

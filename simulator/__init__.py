@@ -15,4 +15,5 @@ from .statistics import (
     WagerChange,
     WagerChangeType,
     SessionStatistics,
+    SessionFinancialSummary,
 )
