@@ -17,9 +17,7 @@ import pytest
 from conftest import result_for
 
 from engine import wager_definitions as defs
-from engine.enums import Resolution
-from engine.wager import Wager, WagerResult
-from engine.game import Game
+from engine import Resolution, Wager, WagerResult, Game
 
 
 def place(game, player, definition, value=25, *, parent=None):

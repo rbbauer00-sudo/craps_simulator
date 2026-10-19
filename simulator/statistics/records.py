@@ -1,15 +1,12 @@
 from dataclasses import dataclass
-from engine import PlayerEquity, WagerType, Game, Resolution
-from statistics import W
+from enum import Enum, auto
+from engine import PlayerEquity, WagerType, Resolution
 
-
-@dataclass(frozen=True)
-class PlayerSnapshot:
-    player_id: int
-    name: str
-    position: int
-    equity: PlayerEquity
-
+class WagerChangeType(Enum):
+    PLACE = auto()
+    REMOVE = auto()
+    ADJUST = auto()
+    STATUS = auto()
 
 @dataclass(frozen=True)
 class WagerSnapshot:
@@ -27,6 +24,38 @@ class WagerSnapshot:
     contract_max: int | None
 
     parent_wager_id: int | None
+
+
+@dataclass(frozen=True)
+class WagerChange:
+    wager_id: int
+    player_id: int
+    change_type: WagerChangeType
+
+    before: WagerSnapshot | None
+    after: WagerSnapshot | None
+
+    @property
+    def value_change(self) -> int:
+        return (
+            (self.after.value if self.after else 0)
+            - (self.before.value if self.before else 0)
+        )
+
+    @property
+    def vig_change(self) -> int:
+        return (
+            (self.after.collected_vig if self.after else 0)
+            - (self.before.collected_vig if self.before else 0)
+        )
+
+
+@dataclass(frozen=True)
+class PlayerSnapshot:
+    player_id: int
+    name: str
+    position: int
+    equity: PlayerEquity
 
 
 @dataclass(frozen=True)
@@ -59,6 +88,9 @@ class RollRecord:
     # Wager state snapshots
     wagers_before: tuple[WagerSnapshot, ...]
     wagers_after: tuple[WagerSnapshot, ...]
+    wager_changes_before: tuple[WagerChange, ...]
 
     # Wager resolutions
     wager_outcomes: tuple[WagerOutcome, ...]
+
+

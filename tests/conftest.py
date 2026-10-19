@@ -1,12 +1,15 @@
 import pytest
 from collections.abc import Sequence
 
-from engine.game import Game
-from engine.player import Player
-from engine.wager import Wager, WagerDefinition, WagerResult
-from engine.enums import WagerType
-from engine import wager_rules as rules
-
+from engine import (
+    wager_rules as rules,
+    Game, 
+    Player, 
+    Wager, 
+    WagerDefinition, 
+    WagerResult, 
+    WagerType,
+)
 
 
 @pytest.fixture

@@ -1,13 +1,17 @@
 import pytest
 from conftest import result_for
 
-from engine import wager_definitions as defs
-from engine.dice import RollResult
-from engine.enums import Resolution, WagerType
-from engine.exceptions import GameRuleViolation, InsufficientFundsError
-from engine.wager import Wager
-from engine.game import Game
-from engine.player import Player
+from engine.dice import RollResult 
+from engine.exceptions import InsufficientFundsError
+from engine import (
+    defs, 
+    Resolution, 
+    WagerType,
+    GameRuleViolation, 
+    Wager, 
+    Game, 
+    Player,
+)
 
 
 STAKE = 25

@@ -2,13 +2,17 @@
 import pytest
 from dataclasses import replace
 
-from engine import wager_definitions as defs
 from engine import constants as const
-from engine.game import Game
-from engine.player import Player
-from engine.wager import Wager
-from engine.enums import Resolution, WagerType, VigSetting
-from engine.exceptions import GameRuleViolation
+from engine.enums import VigSetting 
+from engine import (
+    defs, 
+    Game, 
+    Player, 
+    Wager, 
+    Resolution, 
+    WagerType, 
+    GameRuleViolation,
+)
 
 
 TEST_WAGER_DEF = defs.PLACE_BET

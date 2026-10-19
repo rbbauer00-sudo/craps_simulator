@@ -14,8 +14,10 @@ if TYPE_CHECKING:
 class GameRollResult:
     roll: RollResult
     wager_results: tuple[WagerResult, ...]
+
     point_before: int | None
     point_after: int | None
+    
     shooter_id: int | None
     shooter_roll_count: int
     seven_out: bool
@@ -695,7 +697,7 @@ class Game:
                 self._point = None
 
             # Seven Out
-            if roll_total ==7:
+            elif roll_total ==7:
                 self._point = None
                 self._shooter_roll_count = 0
                 self._advance_shooter()

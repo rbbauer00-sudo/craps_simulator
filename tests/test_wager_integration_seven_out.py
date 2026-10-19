@@ -14,10 +14,7 @@ per-player rather than a table-wide prohibition).
 import pytest
 from conftest import result_for
 
-from engine import wager_definitions as defs
-from engine.wager import Wager, WagerResult
-from engine.game import Game
-from engine.enums import Resolution
+from engine import defs, Wager, WagerResult, Game, Resolution
 
 def definition(*names):
     for name in names:
