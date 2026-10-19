@@ -3,13 +3,12 @@ from collections.abc import Callable, Collection
 from typing import TYPE_CHECKING
 from .enums import Resolution, WagerType, VigSetting
 from .exceptions import GameRuleViolation, EngineStateError
+from .dice import RollResult
 from . import constants as const
 
 if TYPE_CHECKING:
-    from .game import Game
-    from .dice import RollResult
     from .wager import Wager
-
+    from .game import Game
 
 type ResolutionRule = Callable[
     [Wager, RollResult],

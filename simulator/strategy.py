@@ -1,5 +1,5 @@
 from abc import ABC
-from engine import Game, WagerResult, GameRollResult
+from engine import Game, GameRollResult
 
 class Strategy(ABC):
     def before_roll(
@@ -10,7 +10,7 @@ class Strategy(ABC):
     def after_roll(
         self,
         game: Game,
-        results: list[WagerResult]
-    ) -> None:...
+        results: GameRollResult
+    ) -> GameRollResult:...
         
 

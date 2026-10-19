@@ -55,10 +55,6 @@ class Player:
         return self._game
 
     @property
-    def index(self) -> int:
-        return self._index
-
-    @property
     def name(self) -> str:
         return self._name
 

@@ -42,35 +42,6 @@ class WagerResult:
     profit: int = 0
     move_to: int | None = None
 
-    player_id: int = field(init=False)
-    wager_type: WagerType = field(init=False)
-    wager_id: int | None = field(init=False)
-    wager_value: int = field(init=False)
-    wager_target: int | tuple[int, int] | None = field(init=False)
-    wager_is_working: bool = field(init=False)
-    wager_is_buy: bool = field(init=False)
-    wager_collected_vig: int = field(init=False)
-
-    def __post_init__(self):
-        wager = self.wager
-
-        object.__setattr__(
-            self, "wager_id", self.wager.id
-        )
-        object.__setattr__(self, "player_id", wager.player.id)
-        object.__setattr__(
-            self, "wager_type", wager.definition.wager_type
-        )
-        object.__setattr__(self, "wager_value", wager.value)
-        object.__setattr__(self, "wager_target", wager.target)
-        object.__setattr__(
-            self, "wager_is_working", wager.is_working
-        )
-        object.__setattr__(self, "wager_is_buy", wager.is_buy)
-        object.__setattr__(
-            self, "wager_collected_vig", wager.collected_vig
-        )
-
 
 @dataclass(frozen=True)
 class WagerDefinition:

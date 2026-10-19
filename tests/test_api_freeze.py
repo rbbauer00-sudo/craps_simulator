@@ -143,35 +143,6 @@ def test_remove_player_refunds_odds_and_forfeits_only_pass_line_contract():
     assert odds not in game.wagers
 
 
-def test_remove_player_only_affects_that_player_and_preserves_ids():
-    game = Game()
-    a = game.add_player("A")
-    b = game.add_player("B")
-    c = game.add_player("C")
-
-    other_wager = placed(
-        game, c, defs.PLACE_BET, 24, target=6
-    )
-    c_before = c.bankroll
-
-    result = game.remove_player(b)
-
-    assert isinstance(result, PlayerResult)
-    assert game.players == (a, c)
-
-    # Player IDs remain unchanged
-    assert (a.id, c.id) == (0, 2)
-
-    # Other player's wagers and bankroll unaffected
-    assert other_wager in game.wagers
-    assert c.bankroll == c_before
-
-    # New player receives a new ID
-    d = game.add_player("D")
-
-    assert game.players == (a, c, d)
-    assert (a.id, c.id, d.id) == (0, 2, 3)
-
 
 def test_remove_player_rejects_unregistered_player_without_mutation():
     game = Game()
@@ -274,7 +245,52 @@ def test_invalid_roll_does_not_consume_seeded_rng():
     assert a.roll().roll.as_tuple == b.roll().roll.as_tuple
 
 
-# 5. GAMEROLLRESULT IS A STABLE, IMMUTABLE SNAPSHOT
+def test_remove_player_only_affects_that_player_and_preserves_ids():
+    game = Game()
+    a = game.add_player("A")
+    b = game.add_player("B")
+    c = game.add_player("C")
+
+    other_wager = placed(
+        game, c, defs.PLACE_BET, 24, target=6
+    )
+    c_before = c.bankroll
+
+    result = game.remove_player(b)
+
+    assert isinstance(result, PlayerResult)
+    assert game.players == (a, c)
+
+    # Player IDs remain unchanged
+    assert (a.id, c.id) == (0, 2)
+
+    # Other player's wagers and bankroll unaffected
+    assert other_wager in game.wagers
+    assert c.bankroll == c_before
+
+    # New player receives a new ID
+    d = game.add_player("D")
+
+    assert game.players == (a, c, d)
+    assert (a.id, c.id, d.id) == (0, 2, 3)
+
+
+def test_player_position_independent_of_id():
+    game = Game()
+
+    a = game.add_player("A")
+    b = game.add_player("B")
+    c = game.add_player("C")
+
+    game.remove_player(b)
+
+    assert game.players.index(a) == 0
+    assert game.players.index(c) == 1
+
+    assert a.id == 0
+    assert c.id == 2
+
+
 
 def test_game_roll_result_point_transitions_and_seven_out():
     game = Game()

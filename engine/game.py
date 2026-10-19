@@ -89,6 +89,15 @@ class Game:
             int | tuple[int,int] | RollResult
         ] | None = None,
     ) -> None:
+
+        """
+        Return game to initial state.  Removes all
+        current players and wagers.  Shooter roll
+        count is reset to zero and shooter index
+        is reset to None.  Player ID and Wager ID
+        are preserved to avoid duplicate identifiers
+        between sessions.
+        """
         
         new_dice = Dice(
             seed=seed,
@@ -134,6 +143,11 @@ class Game:
         name: str | None = None,
         bankroll: int = 1500,
     ) -> Player:
+        """
+        Create a new player object with
+        unique ID.  Returns newly created
+        player.
+        """
         
         player_id = self._next_player_id
         self._next_player_id += 1
@@ -152,14 +166,15 @@ class Game:
 
 
     def remove_player(self, player: Player) -> PlayerResult:
-        
+
+        # Verify player is active
         if player not in self.players:
             raise ValueError(
                 "Cannot remove unregistered "
                 f"player: {player}."
             )
 
-        # record previous shooter index
+        # Record previous shooter index
         old_index = (
             self._players.index(player)
             if player is self._shooter
@@ -181,7 +196,7 @@ class Game:
             if not wager.contract_min:
                 self.take_down_wager(wager)
 
-        # Return any uncontracted value
+        # Refund any uncontracted value
         for wager in player.get_wagers():
             if (
                 wager.contract_min is not None
@@ -199,15 +214,16 @@ class Game:
             forfeited_value=player.funds_on_table,
         )
 
-        # Remove any remaining player wagers
+        # Forfeit contracted wagers
         for wager in player.get_wagers():
                 self._wagers.remove(wager)
 
+        # Remove player
         self._players.remove(player)
 
+        # Update shooter reference
         if not self._players:
             self._shooter = None
-
         elif old_index is not None:
             next_index = old_index % len(self._players)
             self._shooter = self._players[next_index]
@@ -220,33 +236,37 @@ class Game:
         wager: Wager,
     ) -> None:
 
+        # Verify game object reference
         if wager.game is not self:
             raise ValueError(
                 "Incorrect reference to game object."
             )
-        
+
+        # Verify amount is positive integer
         if type(wager.value) is not int or wager.value <= 0:
             raise ValueError(
                 f"unexpected amount: {wager.value}. Placement "
                 "amount must be greater than zero."
             )
 
+        # Verify player is active
         if wager.player not in self.players:
             raise ValueError(
                 f"Player {wager.player} is not an "
                 "active player in game.players."
             )
 
-        wager.definition.placement_rule(wager)
-
+        # Verify unique wager ID
         if wager.id is not None:
             raise ValueError(
                 f"Wager {wager.id} has already been placed."
             )
+
+        # Verify wager-specific placement rule(s)
+        wager.definition.placement_rule(wager)
         
         # Charge vig to player, if applicable
         wager_type = wager.definition.wager_type
-
         up_front_vig = (
             self.calculate_vig(wager) 
             if (
@@ -259,12 +279,13 @@ class Game:
             ) else 0
         )
 
+        # Withdraw player funds
         wager.player.withdraw(wager.value + up_front_vig)
         wager.collected_vig += up_front_vig
 
+        # Assign unique wager ID and add to wager list
         wager._id = self._next_wager_id
         self._next_wager_id += 1
-
         self._wagers.append(wager)
 
 
