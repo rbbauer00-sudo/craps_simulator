@@ -2,7 +2,9 @@ from __future__ import annotations
 import pygame as pg
 from .base_state import BaseState
 from ui.game_elements.dice_sprite import DiceSprite
+from .roll_phase import RollPhase
 from pygame.constants import *
+from engine import GameRollResult
 
 
 from typing import TYPE_CHECKING
@@ -11,7 +13,8 @@ if TYPE_CHECKING:
     from engine import Game as GameEngine
 
 class RollBuffer:
-    buffer: str = ""
+    def __init__(self):
+        self.buffer: str = ""
 
     def add(self, char: str) -> None:
         candidate = self.buffer + char
@@ -32,17 +35,29 @@ class RollBuffer:
                 self.buffer = candidate
 
     def parse(self) -> tuple[int | None, int | None]:
-        if not self.buffer:
-            d1,d2 = (None, None)
-        
-        else:
-            parts = self.buffer.split(",", maxsplit=1)
+        buffer = self.buffer
+        self.clear()
 
-            d1 = int(parts[0]) if parts[0] else None
-            d2 = int(parts[1]) if len(parts) > 1 and parts[1] else None
+        if not buffer:
+            return None, None
 
-        self.buffer = ""
-        return d1, d2
+        try:
+            parts = buffer.split(",")
+
+            if len(parts) == 1:
+                total = int(parts[0])
+                if 2 <= total <= 12:
+                    return total, None
+
+            elif len(parts) == 2:
+                d1, d2 = map(int, parts)
+                if 1 <= d1 <= 6 and 1 <= d2 <= 6:
+                    return d1, d2
+
+        except ValueError:
+            pass
+
+        return None
 
     def clear(self) -> None:
         self.buffer = ""
@@ -50,7 +65,7 @@ class RollBuffer:
 
 class PlayingState(BaseState):
     def __init__(self, app: CrapsApp):
-        self.app = app
+        super().__init__(app)
         self.engine = app.engine
 
         self.visible_sprites = pg.sprite.Group()
@@ -66,36 +81,112 @@ class PlayingState(BaseState):
         )   
 
         self.forced_roll_buffer = RollBuffer()
-        
-        self.is_animating: bool = False
+        self.current_roll: GameRollResult | None = None
+        self.roll_phase = RollPhase.READY
 
-    def handle_event(self, event: pg.event.Event):
-        if event.type == KEYDOWN:
-            if event.key == K_ESCAPE:
-                from .game_menu_state import GameMenuState
-                self.app.states.push(GameMenuState(self.app))
-            
-            elif (
-                event.key in range(K_0, K_9 + 1)
-                or event.key == K_COMMA
-            ):
-                self.forced_roll_buffer.add(
-                    event.unicode
-                )
-            
-            elif event.key == K_BACKSPACE:
+    @property
+    def is_animating(self) -> bool:
+        return self.roll_phase is not RollPhase.READY
+
+    @property
+    def dice_animation_complete(self) -> bool:
+        #TODO: write return logic
+        return True
+
+    @property
+    def wager_animation_complete(self) -> bool:
+        #TODO: write return logic
+        return True
+
+    @property
+    def puck_animation_complete(self) -> bool:
+        #TODO: write return logic
+        return True
+
+    @property
+    def dice_return_complete(self) -> bool:
+        #TODO: write return logic
+        return True
+
+
+    def handle_event(self, event: pg.event.Event) -> None:
+        if event.type == pg.KEYDOWN and event.key == pg.K_ESCAPE:
+            from .game_menu_state import GameMenuState
+            self.app.states.push(GameMenuState(self.app))
+            return
+
+        if self.is_animating:
+            return
+
+        if event.type == pg.KEYDOWN:
+            if event.key in range(pg.K_0, pg.K_9 + 1) or event.key == pg.K_COMMA:
+                self.forced_roll_buffer.add(event.unicode)
+
+            elif event.key == pg.K_BACKSPACE:
                 self.forced_roll_buffer.clear()
-            
-            elif event.key == K_RETURN:
+
+            elif event.key == pg.K_RETURN:
                 self.roll()
 
+        elif event.type == pg.MOUSEBUTTONDOWN:
+            if event.button == 1:
+                if self.dice_sprite.rect.collidepoint(event.pos):
+                    self.roll()
+
+
     def roll(self) -> None:
-        d1, d2 = self.forced_roll_buffer.parse()
-        result = self.engine.roll(d1,d2)
-        self.dice_sprite.roll(result.roll)
+        if self.is_animating:
+            return
         
+        parsed = self.forced_roll_buffer.parse() 
+        
+        if parsed is None:
+            return
+
+        self.current_roll = self.engine.roll(*parsed)
+        
+        self.roll_phase = RollPhase.DICE_ROLLING
+
+        self.dice_sprite.roll(self.current_roll.roll)
+
+
+
     def update(self, dt: float):
-        pass
+        self.visible_sprites.update(dt)
+
+        match self.roll_phase:
+            case RollPhase.READY:
+                pass
+
+            case RollPhase.DICE_ROLLING:
+                if self.dice.animation_complete:
+                    self.start_wager_resolution()
+
+            case RollPhase.WAGERS_RESOLVING:
+                if self.wager_animation_complete:
+                    self.start_puck_movement()
+
+            case RollPhase.PUCK_MOVING:
+                if self.puck_animaiton_complete:
+                    self.start_dice_return()
+
+            case RollPhase.DICE_RETURNING:
+                if self.dice_return_complete:
+                    self.finish_roll()
+
+
+    def start_wager_resolution(self) -> None:
+        self.roll_phase = RollPhase.WAGERS_RESOLVING
+        #TODO: wager animation
+
+    def start_puck_movement(self) -> None:
+        self.roll_phase = RollPhase.PUCK_MOVING
+        #TODO: puck animation
+
+    def finish_roll(self) -> None:
+        self.current_roll = None
+        self.roll_phase = RollPhase.READY
+
 
     def draw(self, screen: pg.Surface):
         screen.fill((30, 30, 30))
