@@ -1,3 +1,4 @@
+#github
 import pygame as pg
 
 from ui import StateStack, PlayingState
