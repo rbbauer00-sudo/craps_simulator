@@ -34,7 +34,8 @@ class RollBuffer:
             elif (candidate in map(str, range(1, 13))):
                 self.buffer = candidate
 
-    def parse(self) -> tuple[int | None, int | None]:
+
+    def parse(self) -> tuple[int | None] | None:
         buffer = self.buffer
         self.clear()
 
@@ -62,6 +63,7 @@ class RollBuffer:
     def clear(self) -> None:
         self.buffer = ""
         
+
 
 class PlayingState(BaseState):
     def __init__(self, app: CrapsApp):
@@ -108,16 +110,16 @@ class PlayingState(BaseState):
 
     @property
     def puck_animation_complete(self) -> bool:
-        return self.dice_animation_complete
+        return True
 
 
     def start_dice_return(self) -> None:
         self.roll_phase = RollPhase.DICE_RETURNING
+        self.dice_sprite.start_return()
     
     @property
     def dice_return_complete(self) -> bool:
-        #TODO: write return logic
-        return True
+        return not self.dice_sprite.is_returning
 
 
 
@@ -175,7 +177,7 @@ class PlayingState(BaseState):
                 pass
 
             case RollPhase.DICE_ROLLING:
-                if self.dice_sprite.animation_complete:
+                if self.dice_animation_complete:
                     self.start_wager_animation()
 
             case RollPhase.WAGERS_RESOLVING:

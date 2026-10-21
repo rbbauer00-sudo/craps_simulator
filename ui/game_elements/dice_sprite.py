@@ -36,6 +36,7 @@ class DieSprite(pg.sprite.Sprite):
 
         self.render_image()
 
+
     def roll(self, value: int) -> None:
         if not 1 <= value <= 6:
             raise ValueError(
@@ -131,9 +132,19 @@ class DiceSprite(pg.sprite.Sprite):
 
         self.rect = bounds.copy()
 
+        self.home1 = Vector(self.die1.rect.topleft)
+        self.home2 = Vector(self.die2.rect.topleft)
+
+        self.start1 = self.home1.copy()
+        self.start2 = self.home2.copy()
+
+        self.return_duration = 0.35
+        self.return_elapsed = 0.0
+        self.is_returning = False
+
 
     def roll(self, roll_result:RollResult) -> None:
-        if self.is_animating:
+        if self.is_animating or self.is_returning:
             return
 
         self.final_values = (
@@ -141,31 +152,68 @@ class DiceSprite(pg.sprite.Sprite):
             roll_result.d2,
         )
 
-        
         self.animation_elapsed = 0.0
         self.face_elapsed = 0.0
         self.is_animating = True
 
+        self.start1 = Vector(self.die1.rect.topleft)
+        self.start2 = Vector(self.die2.rect.topleft)
+
+        self.target1 = self.home1 + Vector(220,-130)
+        self.target2 = self.home2 + Vector(310,-85)
+
+
     def update(self, dt: float) -> None:
-        if not self.is_animating:
-            return
+        if self.is_animating:
+            self.animation_elapsed += dt
+            self.face_elapsed += dt
 
-        self.animation_elapsed += dt
-        self.face_elapsed += dt
-
-        if self.animation_elapsed >= self.animation_duration:
-            self.finish_animaiton()
-            return
-
-        if self.face_elapsed >= self.face_interval:
-            self.face_elapsed %= self.face_interval
-
-            self.die1.roll(
-                self.animation_rng.randint(1,6)
+            progress = min(
+                self.animation_elapsed / self.animation_duration,
+                1.0,
             )
-            self.die2.roll(
-                self.animation_rng.randint(1,6)
+
+            self.move_dice(
+                self.start1,
+                self.start2,
+                self.target1,
+                self.target2,
+                progress,
             )
+
+            if progress >= 1.0:
+                self.finish_animation()
+                return
+
+            if self.face_elapsed >= self.face_interval:
+                self.face_elapsed %= self.face_interval
+
+                self.die1.roll(
+                    self.animation_rng.randint(1,6)
+                )
+                self.die2.roll(
+                    self.animation_rng.randint(1,6)
+                )
+
+        elif self.is_returning:
+            self.return_elapsed += dt
+
+            progress = min(
+                self.return_elapsed / self.return_duration,
+                1.0,
+            )
+
+            self.move_dice(
+                self.start1,
+                self.start2,
+                self.target1,
+                self.target2,
+                progress,
+            )
+
+            if progress >= 1.0:
+                self.is_returning = False
+
 
     def finish_animation(self) -> None:
         if self.final_values is None:
@@ -178,6 +226,40 @@ class DiceSprite(pg.sprite.Sprite):
 
         self.is_animating = False
         self.final_values = None
+
+
+    def move_dice(
+        self,
+        start1: Vector,
+        start2: Vector,
+        target1: Vector,
+        target2: Vector,
+        progress: float,
+    ) -> None:
+        progress = max(0.0, min(1.0, progress))
+
+        pos1 = start1.lerp(target1, progress)
+        pos2 = start2.lerp(target2, progress)
+
+        self.die1.rect.topleft = (
+            round(pos1.x),
+            round(pos1.y),
+        )
+
+        self.die2.rect.topleft = (
+            round(pos2.x),
+            round(pos2.y),
+        )
+
+    def start_return(self) -> None:
+        if self.is_animating or self.is_returning:
+            return
+
+        self.start1 = Vector(self.die1.rect.topleft)
+        self.start2 = Vector(self.die2.rect.topleft)
+
+        self.return_elapsed = 0.0
+        self.is_returning = True
 
 
     
