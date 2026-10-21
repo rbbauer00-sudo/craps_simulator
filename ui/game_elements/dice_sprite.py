@@ -2,7 +2,7 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 if TYPE_CHECKING:
     from ui import CrapsApp
-    from engine import GameRollResult
+    from engine import RollResult
 import pygame as pg
 from pygame.math import Vector2 as Vector
 from pygame.constants import *
@@ -35,7 +35,7 @@ class DieSprite(pg.sprite.Sprite):
 
         self.render_image()
 
-    def set_value(self, value: int) -> None:
+    def roll(self, value: int) -> None:
         if not 1 <= value <= 6:
             raise ValueError(
                 "Die value must be between 1 and 6."
@@ -121,18 +121,10 @@ class DiceSprite(pg.sprite.Sprite):
 
         self.rect = bounds.copy()
 
-    def set_values(
-        self, 
-        d1: int,
-        d2: int,
-    ) -> None:
-        self.die1.set_value(d1)
-        self.die2.set_value(d2)
 
-    def on_roll(self, result:GameRollResult) -> None:
-        self.set_values(
-            result.roll.d1, 
-            result.roll.d2,
-        )
+    def roll(self, roll_result:RollResult) -> None:
+        self.die1.roll(roll_result.d1)
+        self.die2.roll(roll_result.d2)
+
 
     

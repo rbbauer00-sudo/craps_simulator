@@ -10,41 +10,43 @@ if TYPE_CHECKING:
     from ui import CrapsApp
     from engine import Game as GameEngine
 
+class RollBuffer:
+    buffer: str = ""
 
-def add_char(char: str, chars: str) -> str:
-    candidate = chars + char
+    def add(self, char: str) -> None:
+        candidate = self.buffer + char
 
-    if char == ",":
-        # Allow comma only after a single 1-6
-        if len(chars) == 1 and chars in "123456":
-            return candidate
+        if char == ",":
+            # Allow comma only after a single 1-6
+            if len(self.buffer) == 1 and self.buffer in "123456":
+                self.buffer = candidate
 
-    elif char in "0123456789":
-        # Only allow digits 1-6 to follow a comma
-        if "," in chars:
-            if len(chars) == 2 and char in "123456":
-                return candidate
+        elif char in "0123456789":
+            # Only allow digits 1-6 to follow a comma
+            if "," in self.buffer:
+                if len(self.buffer) == 2 and char in "123456":
+                    self.buffer = candidate
 
-        # If no comma, allow any digit that results in a total of 1-12
-        elif (candidate in map(str, range(1, 13))):
-            return candidate
+            # If no comma, allow any digit that results in a total of 1-12
+            elif (candidate in map(str, range(1, 13))):
+                self.buffer = candidate
 
-    # return original string if new char is invalid
-    return chars
+    def parse(self) -> tuple[int | None, int | None]:
+        if not self.buffer:
+            d1,d2 = (None, None)
+        
+        else:
+            parts = self.buffer.split(",", maxsplit=1)
 
-def parse_forced_roll_buffer(
-    buffer: str,
-) -> tuple[int | None, int | None]:
-    if not buffer:
-        return None, None
+            d1 = int(parts[0]) if parts[0] else None
+            d2 = int(parts[1]) if len(parts) > 1 and parts[1] else None
 
-    parts = buffer.split(",", maxsplit=1)
+        self.buffer = ""
+        return d1, d2
 
-    d1 = int(parts[0]) if parts[0] else None
-    d2 = int(parts[1]) if len(parts) > 1 and parts[1] else None
-
-    return d1, d2
-    
+    def clear(self) -> None:
+        self.buffer = ""
+        
 
 class PlayingState(BaseState):
     def __init__(self, app: CrapsApp):
@@ -63,7 +65,7 @@ class PlayingState(BaseState):
             visible_sprites=self.visible_sprites,
         )   
 
-        self.forced_roll_buffer: str = ""
+        self.forced_roll_buffer = RollBuffer()
         
         self.is_animating: bool = False
 
@@ -72,34 +74,26 @@ class PlayingState(BaseState):
             if event.key == K_ESCAPE:
                 from .game_menu_state import GameMenuState
                 self.app.states.push(GameMenuState(self.app))
+            
             elif (
                 event.key in range(K_0, K_9 + 1)
                 or event.key == K_COMMA
             ):
-                self.forced_roll_buffer = add_char(
-                    event.unicode,
-                    self.forced_roll_buffer
+                self.forced_roll_buffer.add(
+                    event.unicode
                 )
             
             elif event.key == K_BACKSPACE:
-                self.forced_roll_buffer = ""
+                self.forced_roll_buffer.clear()
             
             elif event.key == K_RETURN:
-                d1, d2 = parse_forced_roll_buffer(
-                    self.forced_roll_buffer,
-                )
-                self.forced_roll_buffer = ""
-                self.roll(d1, d2)
+                self.roll()
 
-    def roll(
-        self, 
-        d1: int = None, 
-        d2: int = None,
-    ) -> None:
-        result = self.engine.roll(d1, d2)
-        self.dice_sprite.on_roll(result)
+    def roll(self) -> None:
+        d1, d2 = self.forced_roll_buffer.parse()
+        result = self.engine.roll(d1,d2)
+        self.dice_sprite.roll(result.roll)
         
-
     def update(self, dt: float):
         pass
 

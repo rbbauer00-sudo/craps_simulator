@@ -6,8 +6,12 @@ class GameMenuState(BaseState):
     transparent = True
 
     def handle_event(self, event: pg.event.Event):
-        if event.type == pg.KEYDOWN and event.key == pg.K_ESCAPE:
-            self.app.states.pop()
+        if event.type == pg.KEYDOWN:
+            if event.key == pg.K_ESCAPE:
+                self.app.states.pop()
+
+            elif event.key == pg.K_q:
+                self.app.running = False
 
     def update(self, dt: float):
         pass
