@@ -6,6 +6,7 @@ if TYPE_CHECKING:
 import pygame as pg
 from pygame.math import Vector2 as Vector
 from pygame.constants import *
+import random
 
 pg.font.init()
 DIE_FONT = pg.font.SysFont(None, 38, bold=True)
@@ -91,6 +92,15 @@ class DiceSprite(pg.sprite.Sprite):
         self.app = app
         self.gap = gap
 
+        self.animation_duration = 0.6
+        self.animation_elapsed = 0.0
+        self.face_interval = 0.06
+        self.face_elapsed= 0.0
+
+        self.is_animating = False
+        self.final_values: tuple[int, int] | None = None
+        self.animation_rng = random.Random()
+
         self.die1 = DieSprite(
             size=size,
             topleft=Vector(topleft),
@@ -123,8 +133,51 @@ class DiceSprite(pg.sprite.Sprite):
 
 
     def roll(self, roll_result:RollResult) -> None:
-        self.die1.roll(roll_result.d1)
-        self.die2.roll(roll_result.d2)
+        if self.is_animating:
+            return
+
+        self.final_values = (
+            roll_result.d1,
+            roll_result.d2,
+        )
+
+        
+        self.animation_elapsed = 0.0
+        self.face_elapsed = 0.0
+        self.is_animating = True
+
+    def update(self, dt: float) -> None:
+        if not self.is_animating:
+            return
+
+        self.animation_elapsed += dt
+        self.face_elapsed += dt
+
+        if self.animation_elapsed >= self.animation_duration:
+            self.finish_animaiton()
+            return
+
+        if self.face_elapsed >= self.face_interval:
+            self.face_elapsed %= self.face_interval
+
+            self.die1.roll(
+                self.animation_rng.randint(1,6)
+            )
+            self.die2.roll(
+                self.animation_rng.randint(1,6)
+            )
+
+    def finish_animation(self) -> None:
+        if self.final_values is None:
+            return
+
+        d1, d2 = self.final_values
+
+        self.die1.roll(d1)
+        self.die2.roll(d2)
+
+        self.is_animating = False
+        self.final_values = None
 
 
     

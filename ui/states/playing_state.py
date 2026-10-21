@@ -90,24 +90,41 @@ class PlayingState(BaseState):
 
     @property
     def dice_animation_complete(self) -> bool:
-        #TODO: write return logic
-        return True
+        return not self.dice_sprite.is_animating
+
+
+    def start_wager_animation(self) -> None:
+        self.roll_phase = RollPhase.WAGERS_RESOLVING
+        #TODO: wager animation
 
     @property
     def wager_animation_complete(self) -> bool:
         #TODO: write return logic
         return True
 
+    def start_puck_animation(self) -> None:
+        self.roll_phase = RollPhase.PUCK_MOVING
+        #TODO: puck animation
+
     @property
     def puck_animation_complete(self) -> bool:
-        #TODO: write return logic
-        return True
+        return self.dice_animation_complete
 
+
+    def start_dice_return(self) -> None:
+        self.roll_phase = RollPhase.DICE_RETURNING
+    
     @property
     def dice_return_complete(self) -> bool:
         #TODO: write return logic
         return True
 
+
+
+
+    def finish_roll(self) -> None:
+        self.current_roll = None
+        self.roll_phase = RollPhase.READY
 
     def handle_event(self, event: pg.event.Event) -> None:
         if event.type == pg.KEYDOWN and event.key == pg.K_ESCAPE:
@@ -144,30 +161,29 @@ class PlayingState(BaseState):
             return
 
         self.current_roll = self.engine.roll(*parsed)
-        
         self.roll_phase = RollPhase.DICE_ROLLING
-
+        
         self.dice_sprite.roll(self.current_roll.roll)
-
 
 
     def update(self, dt: float):
         self.visible_sprites.update(dt)
+        self.dice_sprite.update(dt)
 
         match self.roll_phase:
             case RollPhase.READY:
                 pass
 
             case RollPhase.DICE_ROLLING:
-                if self.dice.animation_complete:
-                    self.start_wager_resolution()
+                if self.dice_sprite.animation_complete:
+                    self.start_wager_animation()
 
             case RollPhase.WAGERS_RESOLVING:
                 if self.wager_animation_complete:
-                    self.start_puck_movement()
+                    self.start_puck_animation()
 
             case RollPhase.PUCK_MOVING:
-                if self.puck_animaiton_complete:
+                if self.puck_animation_complete:
                     self.start_dice_return()
 
             case RollPhase.DICE_RETURNING:
@@ -175,17 +191,7 @@ class PlayingState(BaseState):
                     self.finish_roll()
 
 
-    def start_wager_resolution(self) -> None:
-        self.roll_phase = RollPhase.WAGERS_RESOLVING
-        #TODO: wager animation
 
-    def start_puck_movement(self) -> None:
-        self.roll_phase = RollPhase.PUCK_MOVING
-        #TODO: puck animation
-
-    def finish_roll(self) -> None:
-        self.current_roll = None
-        self.roll_phase = RollPhase.READY
 
 
     def draw(self, screen: pg.Surface):
