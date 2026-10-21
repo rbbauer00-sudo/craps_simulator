@@ -1,7 +1,8 @@
 from __future__ import annotations
 from typing import TYPE_CHECKING
 if TYPE_CHECKING:
-    from ui.craps_app import CrapsApp
+    from ui import CrapsApp
+    from engine import GameRollResult
 import pygame as pg
 from pygame.math import Vector2 as Vector
 from pygame.constants import *
@@ -80,14 +81,14 @@ class DiceSprite(pg.sprite.Sprite):
         self,
         size: int,
         topleft: Vector,
-        game: CrapsApp,
+        app: CrapsApp,
         clickable_sprites: pg.sprite.Group,
         visible_sprites: pg.sprite.Group,
         gap: int = 10
     ) -> None:
         super().__init__(clickable_sprites)
 
-        self.game = game
+        self.app = app
         self.gap = gap
 
         self.die1 = DieSprite(
@@ -128,7 +129,10 @@ class DiceSprite(pg.sprite.Sprite):
         self.die1.set_value(d1)
         self.die2.set_value(d2)
 
-    def on_roll(self, result) -> None:
-        self.set_values(result.die1, result.die2)
+    def on_roll(self, result:GameRollResult) -> None:
+        self.set_values(
+            result.roll.d1, 
+            result.roll.d2,
+        )
 
     

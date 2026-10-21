@@ -9,8 +9,8 @@ if TYPE_CHECKING:
 class BaseState(ABC):
     transparent = False
 
-    def __init__(self, game: "CrapsApp"):
-        self.game = game
+    def __init__(self, app: "CrapsApp"):
+        self.app = app
 
     def enter(self):
         pass

@@ -47,9 +47,9 @@ def parse_forced_roll_buffer(
     
 
 class PlayingState(BaseState):
-    def __init__(self, game: CrapsApp):
-        self.game = game
-        self.game_engine
+    def __init__(self, app: CrapsApp):
+        self.app = app
+        self.engine = app.engine
 
         self.visible_sprites = pg.sprite.Group()
         self.clickable_sprites = pg.sprite.Group()
@@ -58,7 +58,7 @@ class PlayingState(BaseState):
         self.dice_sprite = DiceSprite(
             size= 50,
             topleft=(150,500),
-            game=game,
+            app=app,
             clickable_sprites=self.clickable_sprites,
             visible_sprites=self.visible_sprites,
         )   
@@ -96,9 +96,9 @@ class PlayingState(BaseState):
         d1: int = None, 
         d2: int = None,
     ) -> None:
-        game_result = self.game.roll()
+        result = self.engine.roll(d1, d2)
+        self.dice_sprite.on_roll(result)
         
-
 
     def update(self, dt: float):
         pass

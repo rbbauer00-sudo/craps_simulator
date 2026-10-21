@@ -1,8 +1,9 @@
-#github
+
 import pygame as pg
 
-from ui import StateStack, PlayingState
 from engine import GameEngine
+from ui.state_stack import StateStack
+from ui.states.playing_state import PlayingState
 
 class CrapsApp:
     WIDTH = 1280
@@ -18,7 +19,7 @@ class CrapsApp:
         self.running = False
 
         # Engine integration can be added when roll controls are built.
-        self.game: GameEngine = None
+        self.engine = GameEngine()
         self.states = StateStack()
         self.states.push(PlayingState(self))
 
