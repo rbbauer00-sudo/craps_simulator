@@ -1,13 +1,8 @@
-from engine import Game
-from simulator import Simulator, PassLineStrategy
+from ui import CrapsApp
 
-game = Game()
-player = game.add_player()
+def main():
+    app = CrapsApp()
+    app.run()
 
-strategy = PassLineStrategy(player)
-simulator = Simulator(game, strategy)
-
-simulator.run(1000)
-
-print(f"Rolls: {simulator.roll_count}")
-print(f"Final bankroll: ${player.bankroll}")
+if __name__ == "__main__":
+    main()

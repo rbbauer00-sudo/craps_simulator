@@ -1,4 +1,4 @@
-from .game import Game, GameRollResult, GameSettings
+from .game import Game as GameEngine, GameRollResult, GameSettings
 from .wager import WagerResult, Wager, WagerDefinition
 from .player import Player, PlayerResult, PlayerEquity
 from .exceptions import GameRuleViolation, InsufficientFundsError
