@@ -1,11 +1,7 @@
-from __future__ import annotations
-from typing import TYPE_CHECKING
-if TYPE_CHECKING:
-    from ui import StateStack, PlayingState
 import pygame as pg
 
+from ui import StateStack, PlayingState
 from engine import GameEngine
-
 
 class CrapsApp:
     WIDTH = 1280
