@@ -206,8 +206,8 @@ class DiceSprite(pg.sprite.Sprite):
             self.move_dice(
                 self.start1,
                 self.start2,
-                self.target1,
-                self.target2,
+                self.home1,
+                self.home2,
                 progress,
             )
 

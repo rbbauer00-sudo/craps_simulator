@@ -2,6 +2,7 @@ from __future__ import annotations
 import pygame as pg
 from .base_state import BaseState
 from ui.game_elements.dice_sprite import DiceSprite
+from ui.game_elements.puck_sprite import PuckSprite
 from .roll_phase import RollPhase
 from pygame.constants import *
 from engine import GameRollResult
@@ -82,6 +83,11 @@ class PlayingState(BaseState):
             visible_sprites=self.visible_sprites,
         )   
 
+        self.puck_sprite = PuckSprite(
+            self.engine.point,
+            self.visible_sprites,
+        )
+
         self.forced_roll_buffer = RollBuffer()
         self.current_roll: GameRollResult | None = None
         self.roll_phase = RollPhase.READY
@@ -106,11 +112,18 @@ class PlayingState(BaseState):
 
     def start_puck_animation(self) -> None:
         self.roll_phase = RollPhase.PUCK_MOVING
-        #TODO: puck animation
+
+        if self.current_roll is None:
+            raise RuntimeError("No current roll to resolve.")
+
+        self.puck_sprite.on_roll(
+            self.current_roll.point_before,
+            self.current_roll.point_after,
+        )
 
     @property
     def puck_animation_complete(self) -> bool:
-        return True
+        return not self.puck_sprite.is_animating
 
 
     def start_dice_return(self) -> None:
