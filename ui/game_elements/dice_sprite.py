@@ -30,7 +30,7 @@ class DieSprite(pg.sprite.Sprite):
             flags=SRCALPHA,
         )
 
-        self.rect = self.image.get_rect(
+        self.rect = self.image.get_frect(
             topleft=topleft,
         )
 
@@ -65,10 +65,10 @@ class DieSprite(pg.sprite.Sprite):
             color=(225, 225, 225),
         )
 
-        text_rect = text_surf.get_rect(
+        text_rect = text_surf.get_frect(
             center = (
                 self.size // 2, 
-                self.size // 2
+                self.size // 2,
             ),
         )
 

@@ -12,8 +12,6 @@ class PuckSprite(pg.sprite.Sprite):
         None: (850, 110),
 
     }
-
-    OFF_POSITION = (850,110)
                     
     def __init__(
         self,
@@ -23,6 +21,7 @@ class PuckSprite(pg.sprite.Sprite):
         super().__init__(*groups)
 
         self.point = point
+        self.target_point: int | None = point
         self.radius = 24
 
         diameter = self.radius * 2
@@ -32,9 +31,8 @@ class PuckSprite(pg.sprite.Sprite):
             pg.SRCALPHA,
         )
 
-        self.rect = self.image.get_rect(
-            center=self.POINT_POSITIONS[point],
-            #center=self.position_for(point),
+        self.rect = self.image.get_frect(
+            center=self.position_for(point),
         )
 
         self.start_position = Vector(self.rect.center)
@@ -48,13 +46,14 @@ class PuckSprite(pg.sprite.Sprite):
 
         self.render_image()
 
+
     def position_for(
         self,
         point: int | None,
     ) -> tuple[int, int]:
-        if point is None:
-            return self.OFF_POSITION
+        
         return self.POINT_POSITIONS[point]
+    
 
     def render_image(self) -> None:
         self.image.fill((0,0,0,0))
@@ -78,14 +77,14 @@ class PuckSprite(pg.sprite.Sprite):
         )
 
         text = self.font.render(
-            "ON" if self.point else "OFF",
+            f"{self.point}" if self.point else "OFF",
             True,
             black if self.point else white
         )
 
         self.image.blit(
             text,
-            text.get_rect(
+            text.get_frect(
                 center=(self.radius, self.radius,),
             ),
         )
@@ -109,15 +108,16 @@ class PuckSprite(pg.sprite.Sprite):
         if point_before == point_after:
             return
 
-        self.point == point_after
+        self.target_point = point_after
 
         self.start_position = Vector(self.rect.center)
         self.target_position = Vector(
-            self.POINT_POSITIONS[point_after]
+            self.position_for(point_after)
         )
 
         self.animation_elapsed = 0.0
         self.is_animating = True
+
 
     def update(self, dt: float) -> None:
         if not self.is_animating:
@@ -136,10 +136,11 @@ class PuckSprite(pg.sprite.Sprite):
         )
 
         self.rect.center = (
-            round(position.x),
-            round(position.y),
+            position.x,
+            position.y,
         )
 
         if progress >= 1.0:
+            self.point = self.target_point
             self.is_animating = False
             self.render_image()

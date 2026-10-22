@@ -3,9 +3,11 @@ import pygame as pg
 from .base_state import BaseState
 from ui.game_elements.dice_sprite import DiceSprite
 from ui.game_elements.puck_sprite import PuckSprite
+from ui.game_elements.wager_sprite import WagerSprite
+from ui.game_elements.player_sprite import PlayerSprite
 from .roll_phase import RollPhase
 from pygame.constants import *
-from engine import GameRollResult
+from engine import GameRollResult, Wager, defs, Resolution
 
 
 from typing import TYPE_CHECKING
@@ -73,6 +75,7 @@ class PlayingState(BaseState):
 
         self.visible_sprites = pg.sprite.Group()
         self.clickable_sprites = pg.sprite.Group()
+        self.wager_sprites: dict[Wager, WagerSprite] = {}
 
         # Game elements
         self.dice_sprite = DiceSprite(
@@ -88,9 +91,22 @@ class PlayingState(BaseState):
             self.visible_sprites,
         )
 
+        self.player = (
+            self.engine.players[0]
+            if self.engine.players
+            else self.engine.add_player()
+        )
+
+        self.player_sprite = PlayerSprite(
+            self.player,
+            (1000,40),
+            self.visible_sprites,
+        )
+
         self.forced_roll_buffer = RollBuffer()
         self.current_roll: GameRollResult | None = None
         self.roll_phase = RollPhase.READY
+
 
     @property
     def is_animating(self) -> bool:
@@ -103,7 +119,7 @@ class PlayingState(BaseState):
 
     def start_wager_animation(self) -> None:
         self.roll_phase = RollPhase.WAGERS_RESOLVING
-        #TODO: wager animation
+        self.sync_wager_sprites()
 
     @property
     def wager_animation_complete(self) -> bool:
@@ -129,17 +145,17 @@ class PlayingState(BaseState):
     def start_dice_return(self) -> None:
         self.roll_phase = RollPhase.DICE_RETURNING
         self.dice_sprite.start_return()
+
     
     @property
     def dice_return_complete(self) -> bool:
         return not self.dice_sprite.is_returning
 
 
-
-
     def finish_roll(self) -> None:
         self.current_roll = None
         self.roll_phase = RollPhase.READY
+
 
     def handle_event(self, event: pg.event.Event) -> None:
         if event.type == pg.KEYDOWN and event.key == pg.K_ESCAPE:
@@ -159,6 +175,9 @@ class PlayingState(BaseState):
 
             elif event.key == pg.K_RETURN:
                 self.roll()
+
+            elif event.key == pg.K_p:
+                self.place_pass_line()
 
         elif event.type == pg.MOUSEBUTTONDOWN:
             if event.button == 1:
@@ -206,9 +225,6 @@ class PlayingState(BaseState):
                     self.finish_roll()
 
 
-
-
-
     def draw(self, screen: pg.Surface):
         screen.fill((30, 30, 30))
 
@@ -218,3 +234,42 @@ class PlayingState(BaseState):
         pg.draw.rect(screen, (55, 55, 55), (20, 620, 1240, 160))
 
         self.visible_sprites.draw(screen)
+
+
+
+    def place_pass_line(self) -> None:
+        if self.is_animating:
+            return
+
+        wager = Wager(
+            definition=defs.PASS_LINE,
+            player=self.player,
+            game=self.engine,
+            value=25,
+        )
+
+        self.engine.place_wager(wager)
+
+        sprite = WagerSprite(
+            wager,
+            (450, 540),  # Temporary Pass Line location
+            self.visible_sprites,
+        )
+
+        self.wager_sprites[wager] = sprite
+
+    def sync_wager_sprites(self) -> None:
+        active_wagers = set(self.engine.wagers)
+
+        # Remove sprites for resolved wagers.
+        for wager, sprite in list(
+            self.wager_sprites.items()
+        ):
+            if wager not in active_wagers:
+                sprite.kill()
+                del self.wager_sprites[wager]
+
+        # Future: create sprites for wagers
+        # introduced outside the UI.
+
+    
