@@ -118,7 +118,7 @@ class PlayingState(BaseState):
             -50,
         )
 
-        self.resolfving_sprites: list[WagerSprite] = []
+        self.resolving_sprites: list[WagerSprite] = []
 
 
     @property

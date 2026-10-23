@@ -71,7 +71,7 @@ class WagerSprite(ChipSprite):
         super().update(dt)
 
         if (
-            self.wager.value != self.displayed_value
+            self.wager.value != self.value
             or self.wager.is_working != self.displayed_working
         ):
             self.render_image()
