@@ -5,6 +5,7 @@ from ui.game_elements.dice_sprite import DiceSprite
 from ui.game_elements.puck_sprite import PuckSprite
 from ui.game_elements.wager_sprite import WagerSprite
 from ui.game_elements.player_sprite import PlayerSprite
+from ui.game_elements.chip_sprite import ChipSprite
 from .roll_phase import RollPhase
 from pygame.constants import *
 from engine import GameRollResult, Wager, defs, Resolution
@@ -67,7 +68,6 @@ class RollBuffer:
         self.buffer = ""
         
 
-
 class PlayingState(BaseState):
     def __init__(self, app: CrapsApp):
         super().__init__(app)
@@ -107,6 +107,19 @@ class PlayingState(BaseState):
         self.current_roll: GameRollResult | None = None
         self.roll_phase = RollPhase.READY
 
+        self.test_chip = ChipSprite(
+            35,
+            (450,350),
+            self.visible_sprites,
+        )
+
+        self.dealer_position = (
+            self.app.screen.get_width() / 2,
+            -50,
+        )
+
+        self.resolfving_sprites: list[WagerSprite] = []
+
 
     @property
     def is_animating(self) -> bool:
@@ -118,13 +131,47 @@ class PlayingState(BaseState):
 
 
     def start_wager_animation(self) -> None:
-        self.roll_phase = RollPhase.WAGERS_RESOLVING
-        self.sync_wager_sprites()
+        if self.current_roll is None:
+            raise RuntimeError("No current roll to resolve.")
 
+        self.roll_phase = RollPhase.WAGERS_RESOLVING
+        self.resolving_sprites.clear()
+
+        for result in self.current_roll.wager_results:
+            if result.resolution is not Resolution.LOSE:
+                continue
+
+            sprite = self.wager_sprites.get(result.wager)
+
+            if sprite is None:
+                continue
+
+            sprite.move_to(
+                self.dealer_position,
+                duration=0.4,
+            )
+
+            self.resolving_sprites.append(sprite)
+
+            
     @property
     def wager_animation_complete(self) -> bool:
-        #TODO: write return logic
+        if any(
+            sprite.is_animating
+            for sprite in self.resolving_sprites
+        ):
+            return False
+
+        for sprite in self.resolving_sprites:
+            sprite.kill()
+            self.wager_sprites.pop(sprite.wager, None)
+
+        self.resolving_sprites.clear()
+
+        self.sync_wager_sprites()
+
         return True
+
 
     def start_puck_animation(self) -> None:
         self.roll_phase = RollPhase.PUCK_MOVING
@@ -178,6 +225,24 @@ class PlayingState(BaseState):
 
             elif event.key == pg.K_p:
                 self.place_pass_line()
+
+            elif event.key == pg.K_t:
+                if not hasattr(self, "test_wager"):
+                    self.place_test_wager()
+
+            elif event.key == pg.K_o:
+                if hasattr(self, "test_wager"):
+                    self.test_wager.is_working = (
+                        not self.test_wager.is_working
+                    )
+
+            elif event.key == pg.K_m:
+                if not self.test_chip.is_animating:
+                    self.test_chip.move_to(
+                        (650, 250),
+                        duration=0.6,
+                        hold=0.5,
+                    )
 
         elif event.type == pg.MOUSEBUTTONDOWN:
             if event.button == 1:
@@ -272,4 +337,25 @@ class PlayingState(BaseState):
         # Future: create sprites for wagers
         # introduced outside the UI.
 
-    
+
+    def place_test_wager(self) -> None:
+        wager = Wager(
+            definition=defs.PLACE_BET,
+            player=self.player,
+            game=self.engine,
+            value=30,
+            target=6,
+        )
+
+        self.engine.place_wager(wager)
+
+        sprite = WagerSprite(
+            wager,
+            (390, 250),  # Temporary Place 6 position
+            self.visible_sprites,
+        )
+
+        self.wager_sprites[wager] = sprite
+        self.test_wager = wager
+
+        
