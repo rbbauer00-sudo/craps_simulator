@@ -107,11 +107,6 @@ class PlayingState(BaseState):
         self.current_roll: GameRollResult | None = None
         self.roll_phase = RollPhase.READY
 
-        self.test_chip = ChipSprite(
-            35,
-            (450,350),
-            self.visible_sprites,
-        )
 
         self.dealer_position = (
             self.app.screen.get_width() / 2,
@@ -119,6 +114,10 @@ class PlayingState(BaseState):
         )
 
         self.resolving_sprites: list[WagerSprite] = []
+        self.returning_wagers: list[WagerSprite] = []
+        self.payout_sprites: list[ChipSprite] = []
+
+        self.payout_stage = "idle"
 
 
     @property
@@ -130,47 +129,130 @@ class PlayingState(BaseState):
         return not self.dice_sprite.is_animating
 
 
+
     def start_wager_animation(self) -> None:
         if self.current_roll is None:
             raise RuntimeError("No current roll to resolve.")
 
         self.roll_phase = RollPhase.WAGERS_RESOLVING
+
         self.resolving_sprites.clear()
+        self.payout_sprites.clear()
+        self.returning_wagers.clear()
+
+        active_wagers = set(self.engine.wagers)
+        self.payout_stage = "arriving"
 
         for result in self.current_roll.wager_results:
-            if result.resolution is not Resolution.LOSE:
-                continue
-
             sprite = self.wager_sprites.get(result.wager)
 
             if sprite is None:
                 continue
 
-            sprite.move_to(
-                self.dealer_position,
-                duration=0.4,
-            )
+            if result.resolution is Resolution.LOSE:
+                sprite.move_to(
+                    self.dealer_position,
+                    duration=0.4,
+                )
+                self.resolving_sprites.append(sprite)
 
-            self.resolving_sprites.append(sprite)
+            elif result.resolution is Resolution.WIN:
+                if result.profit <= 0:
+                    continue
+
+                x, y = sprite.rect.center
+
+                payout = ChipSprite(
+                    result.profit,
+                    self.dealer_position,
+                    self.visible_sprites,
+                )
+
+                if result.wager not in active_wagers:
+                    self.returning_wagers.append(sprite)
+
+                payout.move_to(
+                    (x + 55, y),
+                    duration=0.4,
+                    hold=0.35,
+                )
+
+                self.payout_sprites.append(payout)
+
 
             
+
     @property
     def wager_animation_complete(self) -> bool:
-        if any(
-            sprite.is_animating
-            for sprite in self.resolving_sprites
-        ):
+        if self.payout_stage == "arriving":
+            moving = [
+                *self.resolving_sprites,
+                *self.payout_sprites,
+            ]
+
+            if any(sprite.is_animating for sprite in moving):
+                return False
+
+            # Remove losing wagers.
+            for sprite in self.resolving_sprites:
+                sprite.kill()
+                self.wager_sprites.pop(sprite.wager, None)
+
+                if getattr(self, "test_wager", None) is sprite.wager:
+                    del self.test_wager
+
+            self.resolving_sprites.clear()
+
+            # Send payouts back to the player.
+            player_position = self.player_sprite.rect.center
+
+            for sprite in self.payout_sprites:
+                sprite.move_to(
+                    player_position,
+                    duration=0.4,
+                )
+
+            for sprite in self.returning_wagers:
+                sprite.move_to(
+                    player_position,
+                    duration=0.4,
+                )
+
+            self.payout_stage = "returning"
             return False
 
-        for sprite in self.resolving_sprites:
-            sprite.kill()
-            self.wager_sprites.pop(sprite.wager, None)
+        if self.payout_stage == "returning":
+            moving = [
+                *self.payout_sprites,
+                *self.returning_wagers,
+            ]
 
-        self.resolving_sprites.clear()
+            if any(sprite.is_animating for sprite in moving):
+                return False
 
-        self.sync_wager_sprites()
+            # All winnings have reached the marquee.
+            for sprite in self.payout_sprites:
+                sprite.kill()
+
+            for sprite in self.returning_wagers:
+                sprite.kill()
+                self.wager_sprites.pop(sprite.wager, None)
+
+            self.returning_wagers.clear()
+
+            self.payout_sprites.clear()
+
+            # Update the displayed bankroll.
+            self.player_sprite.sync_bankroll()
+            self.player_sprite.auto_sync = True
+
+            self.sync_wager_sprites()
+            self.payout_stage = "idle"
+
+            return True
 
         return True
+
 
 
     def start_puck_animation(self) -> None:
@@ -236,13 +318,10 @@ class PlayingState(BaseState):
                         not self.test_wager.is_working
                     )
 
-            elif event.key == pg.K_m:
-                if not self.test_chip.is_animating:
-                    self.test_chip.move_to(
-                        (650, 250),
-                        duration=0.6,
-                        hold=0.5,
-                    )
+            elif event.key == pg.K_c:
+                if not hasattr(self, "test_wager"):
+                    self.place_test_come_wager()
+
 
         elif event.type == pg.MOUSEBUTTONDOWN:
             if event.button == 1:
@@ -258,6 +337,9 @@ class PlayingState(BaseState):
         
         if parsed is None:
             return
+
+        self.player_sprite.sync_bankroll()
+        self.player_sprite.auto_sync = False
 
         self.current_roll = self.engine.roll(*parsed)
         self.roll_phase = RollPhase.DICE_ROLLING
@@ -337,7 +419,6 @@ class PlayingState(BaseState):
         # Future: create sprites for wagers
         # introduced outside the UI.
 
-
     def place_test_wager(self) -> None:
         wager = Wager(
             definition=defs.PLACE_BET,
@@ -357,5 +438,23 @@ class PlayingState(BaseState):
 
         self.wager_sprites[wager] = sprite
         self.test_wager = wager
+    
+    def place_test_come_wager(self) -> None:
+        wager = Wager(
+            definition=defs.COME,
+            player=self.player,
+            game=self.engine,
+            value=25,
+        )
 
+        self.engine.place_wager(wager)
+
+        sprite = WagerSprite(
+            wager,
+            (290, 250),  # Temporary position
+            self.visible_sprites,
+        )
+
+        self.wager_sprites[wager] = sprite
+        self.test_wager = wager
         

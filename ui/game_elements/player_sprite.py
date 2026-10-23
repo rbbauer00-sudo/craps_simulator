@@ -33,7 +33,8 @@ class PlayerSprite(pg.sprite.Sprite):
             None, 28,
         )
 
-        self.displayed_bankroll: int | None = None
+        self.displayed_bankroll: int | None = player.bankroll
+        self.auto_sync = True
 
         self.render_image()
 
@@ -63,7 +64,7 @@ class PlayerSprite(pg.sprite.Sprite):
         )
 
         bankroll = self.value_font.render(
-            f"Bankroll: ${self.player.bankroll:,}",
+            f"Bankroll: ${self.displayed_bankroll:,}",
             True,
             (255, 255, 255),
         )
@@ -71,8 +72,12 @@ class PlayerSprite(pg.sprite.Sprite):
         self.image.blit(name, (12,10))
         self.image.blit(bankroll, (12, 38))
 
-        self.displayed_bankroll = self.player.bankroll
 
-    def update(self, dt: float):
-        if self.player.bankroll != self.displayed_bankroll:
+    def sync_bankroll(self) -> None:
+        if self.displayed_bankroll != self.player.bankroll:
+            self.displayed_bankroll = self.player.bankroll
             self.render_image()
+
+    def update(self, dt: float) -> None:
+        if self.auto_sync:
+            self.sync_bankroll()
