@@ -9,6 +9,7 @@ class ChipSprite(pg.sprite.Sprite):
         value: int,
         center: tuple[float, float],
         *groups: pg.sprite.AbstractGroup,
+        color: tuple[int,int,int] = (35,75, 180),
         radius: int = 25,
     ) -> None:
         super().__init__(*groups)
@@ -36,6 +37,8 @@ class ChipSprite(pg.sprite.Sprite):
         self.is_moving = False
         self.is_holding = False
 
+        self.color = color
+
         self.render_image()
 
     @property
@@ -49,7 +52,7 @@ class ChipSprite(pg.sprite.Sprite):
 
         pg.draw.circle(
             self.image,
-            (35, 75, 180),
+            self.color,
             center,
             self.radius,
         )
@@ -106,6 +109,14 @@ class ChipSprite(pg.sprite.Sprite):
         self.is_moving = True
         self.is_holding = False
 
+    def set_color(
+        self,
+        color: tuple[int, int, int],
+    ) -> None: 
+        if self.color != color:
+            self.color = color
+            self.render_image()
+
     def hold(self, duration: float) -> None:
         if duration < 0:
             raise ValueError(
@@ -120,6 +131,8 @@ class ChipSprite(pg.sprite.Sprite):
         self.hold_duration = duration
         self.hold_elapsed = 0.0
         self.is_holding = duration > 0
+
+
 
     def update(self, dt: float) -> None:
         if self.is_moving:

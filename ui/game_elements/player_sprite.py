@@ -72,11 +72,20 @@ class PlayerSprite(pg.sprite.Sprite):
         self.image.blit(name, (12,10))
         self.image.blit(bankroll, (12, 38))
 
+    def set_displayed_bankroll(self, value: int) -> None:
+        if value != self.displayed_bankroll:
+            self.displayed_bankroll = value
+            self.render_image()
+
+    def adjust_displayed_bankroll(self, amount: int) -> None:
+        self.set_displayed_bankroll(
+            self.displayed_bankroll + amount
+        )
 
     def sync_bankroll(self) -> None:
-        if self.displayed_bankroll != self.player.bankroll:
-            self.displayed_bankroll = self.player.bankroll
-            self.render_image()
+        self.set_displayed_bankroll(
+            self.player.bankroll
+        )
 
     def update(self, dt: float) -> None:
         if self.auto_sync:

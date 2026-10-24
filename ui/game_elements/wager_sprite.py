@@ -38,31 +38,15 @@ class WagerSprite(ChipSprite):
 
             self.image.fill((0,0,0,0))
 
-            pg.draw.circle(
-                self.image,
-                (85,85,85),
-                center,
-                self.radius,
+            self.value = self.wager.value
+
+            self.color = (
+                (35, 74, 180)
+                if self.wager.is_working
+                else (85, 85, 85)
             )
 
-            pg.draw.circle(
-                self.image,
-                (235,235,235),
-                center,
-                self.radius,
-                width=3,
-            )
-
-            text = self.font.render(
-                f"${self.value}",
-                True,
-                (255,255,255),
-            )
-
-            self.image.blit(
-                text,
-                text.get_frect(center=center),
-            )
+        super().render_image()
 
         self.displayed_working = self.wager.is_working
 
