@@ -1,14 +1,10 @@
 from __future__ import annotations
 import pygame as pg
 from .base_state import BaseState
-from ui.game_elements.dice_sprite import DiceSprite
-from ui.game_elements.puck_sprite import PuckSprite
-from ui.game_elements.wager_sprite import WagerSprite
-from ui.game_elements.player_sprite import PlayerSprite
-from ui.game_elements.chip_sprite import ChipSprite
 from .roll_phase import RollPhase
 from pygame.constants import *
 from engine import GameRollResult, Wager, defs, Resolution, WagerType, GameRuleViolation
+from ui.game_elements import DiceSprite, PuckSprite, WagerSprite, PlayerSprite, ChipSprite, VigSprite
 
 
 from typing import TYPE_CHECKING
@@ -86,9 +82,11 @@ class PlayingState(BaseState):
 
         self.visible_sprites = pg.sprite.Group()
         self.clickable_sprites = pg.sprite.Group()
-        self.wager_sprites: dict[Wager, WagerSprite] = {}
         self.moving_wagers: list [WagerSprite] = []
         self.placing_wagers: list[WagerSprite] = []
+        self.placing_vig_chips: list[ChipSprite] = []
+        self.vig_sprites: dict[Wager, VigSprite] = {}
+        self.wager_sprites: dict[Wager, WagerSprite] = {}
 
 
 
@@ -140,6 +138,7 @@ class PlayingState(BaseState):
         return (
             self.roll_phase is not RollPhase.READY
             or bool(self.placing_wagers)
+            or bool(self.placing_vig_chips)
         )
 
     @property
@@ -153,17 +152,15 @@ class PlayingState(BaseState):
         wager: Wager,
         destination: tuple[float, float],
     ) -> None:
+        player_postion = self.player_sprite.rect.center
+        
         sprite = WagerSprite(
             wager,
-            self.player_sprite.rect.center,
+            player_postion,
             self.visible_sprites,
         )
 
         self.wager_sprites[wager] = sprite
-
-        # Engine accounting has already occurred.
-        # Reveal the deduction when the chip departs.
-        self.player_sprite.sync_bankroll()
 
         sprite.move_to(
             destination,
@@ -171,6 +168,26 @@ class PlayingState(BaseState):
         )
 
         self.placing_wagers.append(sprite)
+
+        vig = wager.collected_vig
+
+        if vig > 0:
+            vig_chip = ChipSprite(
+                vig,
+                player_postion, 
+                self.visible_sprites,
+                radius=14,
+                color=(180,130,45),
+            )
+
+            vig_chip.move_to(
+                self.dealer_position,
+                duration=0.4
+            )
+
+            self.placing_vig_chips.append(vig_chip)
+
+            self.player_sprite.sync_bankroll()
 
 
     def start_wager_animation(self) -> None:
@@ -318,6 +335,24 @@ class PlayingState(BaseState):
                 return True
 
 
+    def sync_vig_sprites(self) -> None:
+        for wager, parent in self.wager_sprites.items():
+            vig = wager.collected_vig
+
+            if vig > 0:
+                if wager not in self.vig_sprites:
+                    self.vig_sprites[wager] = VigSprite(parent)
+
+            else:
+                self.vig_sprites.pop(wager, None)
+
+        for wager in list(self.vig_sprites):
+            if wager not in self.wager_sprites:
+                del self.vig_sprites[wager]
+
+        for sprite in self.vig_sprites.values():
+            sprite.update(0.0)
+
 
     def start_puck_animation(self) -> None:
         self.roll_phase = RollPhase.PUCK_MOVING
@@ -391,6 +426,12 @@ class PlayingState(BaseState):
                 except GameRuleViolation:
                     pass
 
+            elif event.key == pg.K_y:
+                try:
+                    self.place_test_lay_wager()
+                except GameRuleViolation as exc:
+                    print(f"Cannot place Lay bet: {exc}")
+
             elif event.key == pg.K_d:
                 try:
                     self.place_test_dp_wager()
@@ -443,6 +484,13 @@ class PlayingState(BaseState):
             if sprite.is_animating
         ]
 
+        for sprite in self.placing_vig_chips[:]:
+            if not sprite.is_animating:
+                sprite.kill()
+                self.placing_vig_chips.remove(sprite)
+
+        self.sync_vig_sprites()
+
         match self.roll_phase:
             case RollPhase.READY:
                 pass
@@ -473,6 +521,9 @@ class PlayingState(BaseState):
         pg.draw.rect(screen, (55, 55, 55), (20, 620, 1240, 160))
 
         self.visible_sprites.draw(screen)
+
+        for sprite in self.vig_sprites.values():
+            screen.blit(sprite.image, sprite.rect)
 
 
     def sync_wager_sprites(self) -> None:
@@ -557,6 +608,23 @@ class PlayingState(BaseState):
         self.animate_wager_placement(
             wager,
             (600, 540),
+        )
+
+
+    def place_test_lay_wager(self) -> None:
+        wager = Wager(
+            definition=defs.LAY_BET,
+            player=self.player,
+            game=self.engine,
+            value=40,
+            target=4,
+        )
+
+        self.engine.place_wager(wager)
+
+        self.animate_wager_placement(
+            wager,
+            (170, 300),
         )
 
         

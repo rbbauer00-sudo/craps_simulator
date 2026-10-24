@@ -31,20 +31,11 @@ class WagerSprite(ChipSprite):
     def render_image(self) -> None:
         self.value = self.wager.value
 
-        super().render_image()
-
-        if not self.wager.is_working:
-            center = (self.radius, self.radius)
-
-            self.image.fill((0,0,0,0))
-
-            self.value = self.wager.value
-
-            self.color = (
-                (35, 74, 180)
-                if self.wager.is_working
-                else (85, 85, 85)
-            )
+        self.color = (
+            (35, 74, 180)
+            if self.wager.is_working
+            else (85, 85, 85)
+        )
 
         super().render_image()
 
