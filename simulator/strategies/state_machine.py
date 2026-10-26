@@ -1,32 +1,54 @@
-
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from enum import Enum
-from typing import Generic, TypeVar
+from typing import Callable, Generic, TypeVar
 
 
 StateT = TypeVar("StateT", bound=Enum)
 
 
 @dataclass
+class Transition(Generic[StateT]):
+    source: StateT
+    target: StateT
+    event: str
+    guard: Callable | None = None
+
+
 class StateMachine(Generic[StateT]):
-    state: StateT
-    previous_state: StateT | None = field(
-        default=None,
-        init=False,
-    )
-    transition_count: int = field(
-        default=0,
-        init=False,
-    )
 
-    def transition(self, new_state: StateT) -> bool:
-        if new_state is self.state:
-            return False
+    def __init__(self, initial_state: StateT):
+        self.state = initial_state
+        self.transitions: list[Transition[StateT]] = []
 
-        self.previous_state = self.state
-        self.state = new_state
-        self.transition_count += 1
-        return True
+    def add_transition(
+        self,
+        source: StateT,
+        target: StateT,
+        event: str,
+        guard: Callable | None = None,
+    ) -> None:
 
-    def is_in(self, state: StateT) -> bool:
-        return self.state is state
+        self.transitions.append(
+            Transition(source, target, event, guard)
+        )
+
+    def trigger(self, event: str, ctx=None) -> bool:
+
+        for transition in self.transitions:
+
+            if transition.source != self.state:
+                continue
+
+            if transition.event != event:
+                continue
+
+            if (
+                transition.guard is not None
+                and not transition.guard(ctx)
+            ):
+                continue
+
+            self.state = transition.target
+            return True
+
+        return False
