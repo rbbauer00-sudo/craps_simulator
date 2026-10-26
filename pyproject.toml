@@ -19,3 +19,4 @@ dev = ["pytest>=9"]
 testpaths = ["tests"]
 python_files = ["test_*.py"]
 addopts = "-x -v --tb=short"
+pythonpath = ["."]

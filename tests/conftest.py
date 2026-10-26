@@ -3,7 +3,7 @@ from collections.abc import Sequence
 
 from engine import (
     wager_rules as rules,
-    Game, 
+    GameEngine as Game, 
     Player, 
     Wager, 
     WagerDefinition, 

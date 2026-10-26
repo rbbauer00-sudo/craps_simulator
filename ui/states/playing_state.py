@@ -3,7 +3,7 @@ import pygame as pg
 from .base_state import BaseState
 from .roll_phase import RollPhase
 from pygame.constants import *
-from engine import GameRollResult, Wager, defs, Resolution, WagerType, GameRuleViolation, VigSetting, InsufficientFundsError
+from engine import GameRollResult, Wager, defs, WagerDefinition, WagerType, GameRuleViolation, VigSetting, InsufficientFundsError
 from ui.game_elements import DiceSprite, PuckSprite, WagerSprite, PlayerSprite, ChipSprite, VigSprite
 from ui.animations.wager_animation_controller import WagerAnimationController
 from ui.animations.animation_settings import AnimationMode
@@ -123,6 +123,10 @@ class PlayingState(BaseState):
             WagerType.LAY_BET: pg.FRect(110, 340, 120, 70),
         }
 
+        self.pass_odds_area = pg.FRect(
+            390, 425, 120, 60
+        )
+
 
 
         self.dice_sprite = DiceSprite(
@@ -177,13 +181,6 @@ class PlayingState(BaseState):
         return not self.dice_sprite.is_animating
 
 
-    def animate_wager_placement(
-        self,
-        wager: Wager,
-        destination: tuple[float, float],
-    ) -> None:
-        self.wager_animator.place(wager, destination)
-    
 
     def start_wager_animation(self) -> None:
         self.roll_phase = RollPhase.WAGERS_RESOLVING
@@ -321,7 +318,10 @@ class PlayingState(BaseState):
                     event.button == 1
                     and self.selected_tool is CursorTool.CHIP
                 ):
-                    self.handle_table_click(event.pos)
+                    if self.pass_odds_area.collidepoint(event.pos):
+                        self.handle_pass_odds_click()
+                    else:
+                        self.handle_table_click(event.pos)
 
 
                         
@@ -373,6 +373,61 @@ class PlayingState(BaseState):
             return
 
 
+    def draw_selector(
+        self,
+        screen: pg.Surface,
+        rect: pg.FRect,
+        label: str,
+        selected: bool,
+        *,
+        ellipse: bool = False,
+    ) -> None:
+        fill = (
+            (35, 105, 185)
+            if selected
+            else (70, 70, 70)
+        )
+
+        border = (
+            (245, 245, 245)
+            if selected
+            else (150, 150, 150)
+        )
+
+        if ellipse:
+            pg.draw.ellipse(screen, fill, rect)
+            pg.draw.ellipse(
+                screen,
+                border,
+                rect,
+                width=3 if selected else 1,
+            )
+        else:
+            pg.draw.rect(
+                screen,
+                fill,
+                rect,
+                border_radius=8,
+            )
+            pg.draw.rect(
+                screen,
+                border,
+                rect,
+                width=3 if selected else 1,
+                border_radius=8,
+            )
+
+        text = self.app.font.render(
+            label,
+            True,
+            (255, 255, 255),
+        )
+
+        screen.blit(
+            text,
+            text.get_frect(center=rect.center),
+        )
+
     
     def handle_chip_click(
         self,
@@ -387,31 +442,18 @@ class PlayingState(BaseState):
         return False
 
 
-    def handle_wager_click(
+    def handle_tool_click(
         self,
         position: tuple[int, int],
-        button: int,
     ) -> bool:
-        wager = self.wager_at_position(position)
+        for tool, rect in self.tool_buttons.items():
+            if rect.collidepoint(position):
+                self.selected_tool = tool
+                return True
 
-        if wager is None:
-            return False
+        return False
 
-        if self.selected_tool is not CursorTool.CHIP:
-            return False
 
-        amount = (
-            self.selected_chip
-            if button == 1
-            else -self.selected_chip
-        )
-
-        try:
-            self.adjust_test_wager(wager, amount)
-        except GameRuleViolation as exc:
-            print(f"Cannot adjust wager: {exc}")
-
-        return True
 
 
     def apply_wager_tool(
@@ -600,62 +642,25 @@ class PlayingState(BaseState):
                 text.get_frect(center=label_position),
             )
 
+
         for value, rect in self.chip_buttons.items():
-            selected = value == self.selected_chip
-
-            pg.draw.ellipse(
+            self.draw_selector(
                 screen,
-                (35, 105, 185) if selected else (70, 70, 70),
                 rect,
-            )
-
-            pg.draw.ellipse(
-                screen,
-                (245, 245, 245) if selected else (150, 150, 150),
-                rect,
-                width=3 if selected else 1,
-            )
-
-            text = self.app.font.render(
                 f"${value}",
-                True,
-                (255, 255, 255),
+                selected=(
+                    self.selected_tool is CursorTool.CHIP
+                    and value == self.selected_chip
+                ),
+                ellipse=True,
             )
 
-            screen.blit(
-                text,
-                text.get_frect(center=rect.center),
-            )
-
-
-        # Draw selector buttons
         for tool, rect in self.tool_buttons.items():
-            selected = tool is self.selected_tool
-
-            pg.draw.rect(
+            self.draw_selector(
                 screen,
-                (35, 105, 185) if selected else (70, 70, 70),
                 rect,
-                border_radius=8,
-            )
-
-            pg.draw.rect(
-                screen,
-                (245, 245, 245) if selected else (150, 150, 150),
-                rect,
-                width=3 if selected else 1,
-                border_radius=8,
-            )
-
-            text = self.app.font.render(
                 tool.name,
-                True,
-                (255, 255, 255),
-            )
-
-            screen.blit(
-                text,
-                text.get_frect(center=rect.center),
+                selected=tool is self.selected_tool,
             )
 
         self.visible_sprites.draw(screen)
@@ -664,271 +669,28 @@ class PlayingState(BaseState):
             screen.blit(sprite.image, sprite.rect)
 
 
-#=====================
-# TEST CODE
-#=====================
-
-    def place_pass_line(self) -> None:
-        if self.is_animating:
-            return
-
-        wager = Wager(
-            definition=defs.PASS_LINE,
-            player=self.player,
-            game=self.engine,
-            value=self.selected_chip,
-        )
-
-        self.engine.place_wager(wager)
-
-        self.animate_wager_placement(
-            wager,
-            (450, 540),  
-        )
-
-
-    def place_test_wager(self) -> None:
-        wager = Wager(
-            definition=defs.PLACE_BET,
-            player=self.player,
-            game=self.engine,
-            value=30,
-            target=6,
-        )
-
-        self.engine.place_wager(wager)
-
-        self.animate_wager_placement(
-            wager,
-            (400, 340),
-        )
-
-
-    def place_test_come_wager(self) -> None:
-        wager = Wager(
-            definition=defs.COME,
-            player=self.player,
-            game=self.engine,
-            value=self.selected_chip,
-        )
-
-        self.engine.place_wager(wager)
-
-        self.animate_wager_placement(
-            wager,
-            (290, 250),
-        )
-
-
-    def place_test_dp_wager(self) -> None:
-        wager = Wager(
-            definition=defs.DONT_PASS,
-            player=self.player,
-            game=self.engine,
-            value=self.selected_chip,
-        )
-
-        self.engine.place_wager(wager)
-
-        self.animate_wager_placement(
-            wager,
-            (600, 540),
-        )
-
-
-    def place_test_lay_wager(self) -> None:
-        wager = Wager(
-            definition=defs.LAY_BET,
-            player=self.player,
-            game=self.engine,
-            value=40,
-            target=4,
-        )
-
-        self.engine.place_wager(wager)
-
-        self.animate_wager_placement(
-            wager,
-            (170, 360),
-        )
-
-        
-    def place_test_odds_wager(
-        self,
-        parent: Wager,
-        value: int = 25,
-    ) -> None:
-
-        parent_type = parent.definition.wager_type
-
-        if parent_type in {
-            WagerType.PASS_LINE,
-            WagerType.COME,
-        }:
-            definition = defs.LINE_ODDS
-
-        elif parent_type in {
-            WagerType.DONT_PASS,
-            WagerType.DONT_COME,
-        }:
-            definition = defs.LAY_ODDS
-
-        else:
-            raise ValueError(
-                "Odds require a line, Come, or Don't Come parent."
-            )
-
-        wager = Wager(
-            definition=definition,
-            player=self.player,
-            game=self.engine,
-            value=value,
-            parent_wager=parent,
-        )
-
-        self.engine.place_wager(wager)
-
-        parent_sprite = self.wager_sprites[parent]
-
-        x, y = parent_sprite.rect.center
-
-        self.animate_wager_placement(
-            wager,
-            (x, y + 55),
-        )
-
-    
-    def find_test_odds_parent(self) -> Wager | None:
-        eligible_types = {
-            WagerType.PASS_LINE,
-            WagerType.DONT_PASS,
-            WagerType.COME,
-            WagerType.DONT_COME,
-        }
-
-        for wager in reversed(self.engine.wagers):
-            if (
-                wager.player is self.player
-                and wager.definition.wager_type in eligible_types
-            ):
-                target = (
-                    self.engine.point
-                    if wager.definition.wager_type in {
-                        WagerType.PASS_LINE,
-                        WagerType.DONT_PASS,
-                    }
-                    else wager.target
-                )
-
-                if target is None:
-                    continue
-
-                has_odds = any(
-                    existing.parent_wager is wager
-                    for existing in self.engine.wagers
-                )
-
-                if not has_odds:
-                    return wager
-
-        return None
-
-
-    def find_test_odds_wager(self) -> Wager | None:
-        odds_types = {
-            WagerType.LINE_ODDS,
-            WagerType.LAY_ODDS,
-        }
-
-        for wager in reversed(self.engine.wagers):
-            if (
-                wager.player is self.player
-                and wager.definition.wager_type in odds_types
-            ):
-                return wager
-
-        return None
-
-
-    def take_down_test_lay_wager(self) -> None:
-        wager = self.engine.get_wager(
+    def handle_pass_odds_click(self) -> None:
+        parent = self.engine.get_wager(
             self.player,
-            WagerType.LAY_BET,
-            target=4,
+            WagerType.PASS_LINE,
         )
 
-        if wager is None:
-            print("No Lay wager to remove.")
+        if parent is None:
+            print("Place a Pass Line wager first.")
             return
 
-        # Preserve the refundable commission amount.
-        vig_refund = wager.collected_vig
-
-        # Engine handles rules and accounting.
-        self.engine.take_down_wager(wager)
-
-        # Controller handles the visual return.
-        self.wager_animator.remove(
-            wager,
-            vig_refund,
-        )
-
-
-    def place_test_buy_wager(self) -> None:
-        wager = Wager(
-            definition=defs.PLACE_BET,
-            player=self.player,
-            game=self.engine,
-            value=20,
-            target=4,
-        )
-
-        wager.is_buy = True
-
-        self.engine.place_wager(wager)
-
-        self.animate_wager_placement(
-            wager,
-            (170, 250),
-        )
-    
-
-    def adjust_test_wager(
-        self,
-        wager: Wager,
-        amount: int,
-    ) -> None:
-        if amount == 0:
-            return
-
-        if amount < 0 and -amount >= wager.value:
-            self.take_down_wager(wager)
-            return
-
-        sprite = self.wager_sprites[wager]
-        old_vig = wager.collected_vig
-
-        # Freeze the displayed wager value before
-        # applying the engine adjustment.
-        sprite.auto_sync_value = False
+        existing = self.engine.get_child_wager(parent)
 
         try:
-            if amount > 0:
-                self.engine.increase_wager(wager, amount)
-            else:
-                self.engine.decrease_wager(wager, -amount)
-
-        except Exception:
-            sprite.auto_sync_value = True
-            raise
-
-        vig_change = wager.collected_vig - old_vig
-
-        self.wager_animator.adjust(
-            wager,
-            amount,
-            vig_change,
-        )
+            self.change_wager(
+                self.selected_chip,
+                wager=existing,
+                definition=defs.LINE_ODDS,
+                parent=parent,
+                position=self.pass_odds_area.center,
+            )
+        except (GameRuleViolation, InsufficientFundsError) as exc:
+            print(f"Cannot change Pass Line odds: {exc}")       
 
 
     def change_wager(

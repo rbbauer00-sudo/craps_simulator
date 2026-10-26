@@ -8,8 +8,7 @@ from pygame.math import Vector2 as Vector
 from pygame.constants import *
 import random
 
-pg.font.init()
-DIE_FONT = pg.font.SysFont(None, 38, bold=True)
+
 
 
 
@@ -25,6 +24,7 @@ class DieSprite(pg.sprite.Sprite):
         self.value: int = 6
         self.size = size
 
+
         self.image = pg.surface.Surface(
             size=(size,size),
             flags=SRCALPHA,
@@ -34,6 +34,7 @@ class DieSprite(pg.sprite.Sprite):
             topleft=topleft,
         )
 
+        self.font = pg.font.SysFont(None, 38, bold=True)
         self.render_image()
 
 
@@ -59,7 +60,7 @@ class DieSprite(pg.sprite.Sprite):
             )
 
         # Render text
-        text_surf = DIE_FONT.render(
+        text_surf = self.font.render(
             text=str(self.value), 
             antialias=True, 
             color=(225, 225, 225),
