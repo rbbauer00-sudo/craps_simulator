@@ -3,10 +3,11 @@ import pygame as pg
 from .base_state import BaseState
 from .roll_phase import RollPhase
 from pygame.constants import *
-from engine import GameRollResult, Wager, defs, Resolution, WagerType, GameRuleViolation, VigSetting
+from engine import GameRollResult, Wager, defs, Resolution, WagerType, GameRuleViolation, VigSetting, InsufficientFundsError
 from ui.game_elements import DiceSprite, PuckSprite, WagerSprite, PlayerSprite, ChipSprite, VigSprite
 from ui.animations.wager_animation_controller import WagerAnimationController
 from ui.animations.animation_settings import AnimationMode
+from ui.input import CursorTool
 
 from typing import TYPE_CHECKING
 if TYPE_CHECKING:
@@ -77,6 +78,14 @@ class PlayingState(BaseState):
         10: (720, 190),
     }
 
+    BETTING_DEFINITIONS = {
+        WagerType.PASS_LINE: (defs.PASS_LINE, None),
+        WagerType.DONT_PASS: (defs.DONT_PASS, None),
+        WagerType.COME: (defs.COME, None),
+        WagerType.PLACE_BET: (defs.PLACE_BET, 6),
+        WagerType.LAY_BET: (defs.LAY_BET, 4),
+    }
+
     def __init__(self, app: CrapsApp):
         super().__init__(app)
         self.engine = app.engine
@@ -87,10 +96,12 @@ class PlayingState(BaseState):
         self.vig_sprites: dict[Wager, VigSprite] = {}
         self.wager_sprites: dict[Wager, WagerSprite] = {}
 
+        self.selected_tool = CursorTool.CHIP
         self.selected_chip = 25
 
         # UI elements
         self.chip_buttons = {
+            1: pg.FRect(301, 680, 80, 55),
             5: pg.FRect(400, 680, 85, 55),
             10: pg.FRect(495, 680, 85, 55),
             25: pg.FRect(590, 680, 85, 55),
@@ -273,16 +284,41 @@ class PlayingState(BaseState):
 
         match event.type:
 
+
             case pg.MOUSEBUTTONDOWN:
+                if event.button not in (1, 3):
+                    return
+
                 if event.button == 1:
                     if self.handle_chip_click(event.pos):
                         return
 
                     if self.dice_sprite.rect.collidepoint(event.pos):
                         self.roll()
-                    else:
-                        self.handle_table_click(event.pos)
-                        
+                        return
+
+                wager = self.wager_at_position(event.pos)
+
+                if wager is not None:
+                    amount = (
+                        self.selected_chip
+                        if event.button == 1
+                        else -self.selected_chip
+                    )
+
+                    try:
+                        self.change_wager(
+                            amount,
+                            wager=wager,
+                        )
+                    except (GameRuleViolation, InsufficientFundsError) as exc:
+                        print(f"Cannot change wager: {exc}")
+
+                    return
+
+                if event.button == 1:
+                    self.handle_table_click(event.pos)
+
                         
             case pg.KEYDOWN:
                 match event.key:
@@ -299,6 +335,7 @@ class PlayingState(BaseState):
                     case pg.K_RETURN:
                         self.roll()
 
+                '''
                     case pg.K_p:
                         self.place_pass_line()
 
@@ -394,6 +431,8 @@ class PlayingState(BaseState):
                                     self.adjust_test_wager(wager, amount)
                                 except GameRuleViolation as exc:
                                     print(f"Cannot adjust Lay bet: {exc}")
+                    '''
+
 
 
     def handle_table_click(
@@ -404,28 +443,29 @@ class PlayingState(BaseState):
             if not rect.collidepoint(position):
                 continue
 
+            definition, target = self.BETTING_DEFINITIONS[
+                wager_type
+            ]
+
+            existing = self.engine.get_wager(
+                self.player,
+                wager_type,
+                target=target,
+            )
+
             try:
-                match wager_type:
-                    case WagerType.PASS_LINE:
-                        self.place_pass_line()
-
-                    case WagerType.DONT_PASS:
-                        self.place_test_dp_wager()
-
-                    case WagerType.COME:
-                        self.place_test_come_wager()
-
-                    case WagerType.PLACE_BET:
-                        if not hasattr(self, "test_wager"):
-                            self.place_test_wager()
-
-                    case WagerType.LAY_BET:
-                        self.place_test_lay_wager()
-
-            except GameRuleViolation as exc:
-                print(f"Cannot place wager: {exc}")
+                self.change_wager(
+                    self.selected_chip,
+                    wager=existing,
+                    definition=definition,
+                    target=target,
+                    position=rect.center,
+                )
+            except (GameRuleViolation, InsufficientFundsError) as exc:
+                print(f"Cannot change wager: {exc}")
 
             return
+
 
     
     def handle_chip_click(
@@ -435,11 +475,53 @@ class PlayingState(BaseState):
         for value, rect in self.chip_buttons.items():
             if rect.collidepoint(position):
                 self.selected_chip = value
+                self.selected_tool = CursorTool.CHIP
                 return True
 
         return False
 
-        
+
+    def handle_wager_click(
+        self,
+        position: tuple[int, int],
+        button: int,
+    ) -> bool:
+        wager = self.wager_at_position(position)
+
+        if wager is None:
+            return False
+
+        if self.selected_tool is not CursorTool.CHIP:
+            return False
+
+        amount = (
+            self.selected_chip
+            if button == 1
+            else -self.selected_chip
+        )
+
+        try:
+            self.adjust_test_wager(wager, amount)
+        except GameRuleViolation as exc:
+            print(f"Cannot adjust wager: {exc}")
+
+        return True
+
+
+
+    def wager_at_position(
+        self,
+        position: tuple[int, int],
+    ) -> Wager | None:
+        for wager, sprite in reversed(
+            list(self.wager_sprites.items())
+        ):
+            if sprite.rect.collidepoint(position):
+                return wager
+
+        return None
+
+
 
     def roll(self) -> None:
         if self.is_animating:
@@ -482,6 +564,18 @@ class PlayingState(BaseState):
         self.roll_phase = RollPhase.DICE_ROLLING
         self.dice_sprite.roll(self.current_roll.roll)
 
+
+    def take_down_wager(self, wager: Wager) -> None:
+        vig_refund = wager.collected_vig
+
+        # Engine enforces all contract restrictions.
+        self.engine.take_down_wager(wager)
+
+        # Animate the actual principal and commission return.
+        self.wager_animator.remove(
+            wager,
+            vig_refund,
+        )
 
 
     def update(self, dt: float) -> None:
@@ -841,6 +935,10 @@ class PlayingState(BaseState):
         if amount == 0:
             return
 
+        if amount < 0 and -amount >= wager.value:
+            self.take_down_wager(wager)
+            return
+
         sprite = self.wager_sprites[wager]
         old_vig = wager.collected_vig
 
@@ -866,4 +964,84 @@ class PlayingState(BaseState):
             vig_change,
         )
 
+
+    def change_wager(
+        self,
+        amount: int,
+        *,
+        wager: Wager | None = None,
+        definition: WagerDefinition | None = None,
+        target: int | None = None,
+        position: tuple[float, float] | None = None,
+        parent: Wager | None = None,
+    ) -> None:
+        if self.is_animating or amount == 0:
+            return
+
+        # No existing wager: create a new wager.
+        if wager is None:
+            if amount < 0:
+                return
+
+            if definition is None or position is None:
+                raise ValueError(
+                    "New wagers require a definition and position."
+                )
+
+            wager = Wager(
+                definition=definition,
+                player=self.player,
+                game=self.engine,
+                value=amount,
+                target=target,
+                parent_wager=parent,
+            )
+
+            self.engine.place_wager(wager)
+            self.wager_animator.place(wager, position)
+            return
+
+        # Existing wager: request complete removal.
+        if amount < 0 and -amount >= wager.value:
+            # Removal can also refund associated odds.
+            child = self.engine.get_child_wager(wager)
+
+            refunded = [
+                (item, item.collected_vig)
+                for item in (wager, child)
+                if item is not None
+            ]
+
+            self.engine.take_down_wager(wager)
+
+            for item, vig_refund in refunded:
+                self.wager_animator.remove(
+                    item,
+                    vig_refund,
+                )
+
+            return
+
+        # Existing wager: increase or decrease.
+        sprite = self.wager_sprites[wager]
+        old_vig = wager.collected_vig
+
+        sprite.auto_sync_value = False
+
+        try:
+            if amount > 0:
+                self.engine.increase_wager(wager, amount)
+            else:
+                self.engine.decrease_wager(wager, -amount)
+        except Exception:
+            sprite.auto_sync_value = True
+            raise
+
+        vig_change = wager.collected_vig - old_vig
+
+        self.wager_animator.adjust(
+            wager,
+            amount,
+            vig_change,
+        )
 
