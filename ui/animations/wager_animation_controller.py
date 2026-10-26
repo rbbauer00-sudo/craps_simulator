@@ -4,7 +4,7 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 from engine import Resolution, Wager
-from .animation_settings import AnimationSettings
+from .animation_settings import AnimationSettings, AnimationMode
 from ui.game_elements import ChipSprite, WagerSprite
 
 if TYPE_CHECKING:
@@ -68,18 +68,27 @@ class WagerAnimationController:
 
 
     def start(self) -> None:
+        match self.settings.mode:
+            case AnimationMode.FULL:
+                self.start_full()
+
+            case AnimationMode.SIMULTANEOUS:
+                self.start_simultaneous()
+
+            case AnimationMode.MINIMAL | AnimationMode.INSTANT:
+                raise NotImplementedError(
+                    f"{self.settings.mode.name} mode "
+                    "is not implemented yet."
+                )
+
+
+    def start_full(self) -> None:
         state = self.state
 
         if state.current_roll is None:
             raise RuntimeError("No current roll to resolve.")
 
-        self.resolving_sprites.clear()
-        self.returning_wagers.clear()
-        self.moving_wagers.clear()
-        self.payout_sprites.clear()
-        self.renewal_payouts.clear()
-        self.renewal_vig_chips.clear()
-        self.renewing_vig.clear()
+        self.reset_resolution()
 
         active_wagers = set(state.engine.wagers)
         self.payout_stage = "arriving"
@@ -438,6 +447,51 @@ class WagerAnimationController:
 
         match self.payout_stage:
 
+            case "simultaneous":
+                moving = [
+                    *self.resolving_sprites,
+                    *self.returning_wagers,
+                    *self.moving_wagers,
+                    *self.payout_sprites,
+                    *self.renewal_vig_chips,
+                ]
+
+                if any(sprite.is_animating for sprite in moving):
+                    return False
+
+                for sprite in self.resolving_sprites:
+                    sprite.kill()
+                    state.wager_sprites.pop(sprite.wager, None)
+
+                    if getattr(state, "test_wager", None) is sprite.wager:
+                        del state.test_wager
+
+                for sprite in self.returning_wagers:
+                    sprite.kill()
+                    state.wager_sprites.pop(sprite.wager, None)
+
+                for sprite in self.payout_sprites:
+                    sprite.kill()
+
+                for sprite in self.renewal_vig_chips:
+                    sprite.kill()
+
+                self.resolving_sprites.clear()
+                self.returning_wagers.clear()
+                self.moving_wagers.clear()
+                self.payout_sprites.clear()
+                self.renewal_vig_chips.clear()
+                self.renewal_payouts.clear()
+                self.renewing_vig.clear()
+
+                state.player_sprite.sync_bankroll()
+                state.player_sprite.auto_sync = True
+                state.sync_wager_sprites()
+
+                self.payout_stage = "idle"
+                return True
+
+
             case "arriving":
                 moving = [
                     *self.resolving_sprites,
@@ -526,7 +580,17 @@ class WagerAnimationController:
                     f"Unknown payout stage: {self.payout_stage}"
                 )
 
-
+    
+    def reset_resolution(self) -> None:
+        self.resolving_sprites.clear()
+        self.returning_wagers.clear()
+        self.moving_wagers.clear()
+        self.payout_sprites.clear()
+        self.renewal_payouts.clear()
+        self.renewal_vig_chips.clear()
+        self.renewing_vig.clear()
+    
+    
     def update(self) -> bool:
         """
         Update all wager animations.

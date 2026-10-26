@@ -7,7 +7,7 @@ def main():
     )
 
     animation_settings = AnimationSettings(
-        speed_multiplier=5.0,
+        speed_multiplier=0.75,
     )
 
     app = CrapsApp(
