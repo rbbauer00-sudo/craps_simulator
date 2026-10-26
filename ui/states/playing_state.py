@@ -441,16 +441,16 @@ class PlayingState(BaseState):
 
     def sync_vig_sprites(self) -> None:
         for wager, parent in self.wager_sprites.items():
-            vig = wager.collected_vig
-
-            if (
-                vig > 0 
+            show_indicator = (
+                wager.collected_vig > 0
+                and not parent.is_animating
                 and wager not in self.placing_vig_chips
                 and wager not in self.renewing_vig
-            ):
+            )
+
+            if show_indicator:
                 if wager not in self.vig_sprites:
                     self.vig_sprites[wager] = VigSprite(parent)
-
             else:
                 self.vig_sprites.pop(wager, None)
 
