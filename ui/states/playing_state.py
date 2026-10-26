@@ -92,6 +92,8 @@ class PlayingState(BaseState):
             WagerType.PASS_LINE: pg.FRect(390, 505, 120, 70),
             WagerType.DONT_PASS: pg.FRect(540, 505, 120, 70),
             WagerType.COME: pg.FRect(225, 215, 130, 70),
+            WagerType.PLACE_BET: pg.FRect(350, 300, 120, 70),
+            WagerType.LAY_BET: pg.FRect(110, 340, 120, 70),
         }
 
         self.dice_sprite = DiceSprite(
@@ -397,6 +399,13 @@ class PlayingState(BaseState):
                     case WagerType.COME:
                         self.place_test_come_wager()
 
+                    case WagerType.PLACE_BET:
+                        if not hasattr(self, "test_wager"):
+                            self.place_test_wager()
+
+                    case WagerType.LAY_BET:
+                        self.place_test_lay_wager()
+
             except GameRuleViolation as exc:
                 print(f"Cannot place wager: {exc}")
 
@@ -493,8 +502,16 @@ class PlayingState(BaseState):
                 border_radius=6,
             )
 
+            labels = {
+                WagerType.PLACE_BET: "PLACE 6",
+                WagerType.LAY_BET: "LAY 4",
+            }
+
             label = self.app.font.render(
-                wager_type.name.replace("_", " "),
+                labels.get(
+                    wager_type,
+                    wager_type.name.replace("_", " "),
+                ),
                 True,
                 (230, 230, 230),
             )
@@ -502,6 +519,27 @@ class PlayingState(BaseState):
             screen.blit(
                 label,
                 label.get_frect(center=rect.center),
+            )
+
+        # Draw puck position labels.
+        for point, position in self.puck_sprite.POINT_POSITIONS.items():
+            label = "OFF" if point is None else str(point)
+
+            text = self.app.font.render(
+                label,
+                True,
+                (230, 230, 230),
+            )
+
+            # Position the label above the puck.
+            label_position = (
+                position[0],
+                position[1] - 45,
+            )
+
+            screen.blit(
+                text,
+                text.get_frect(center=label_position),
             )
 
         self.visible_sprites.draw(screen)
@@ -546,7 +584,7 @@ class PlayingState(BaseState):
 
         self.animate_wager_placement(
             wager,
-            (390, 250),
+            (400, 340),
         )
 
 
@@ -595,7 +633,7 @@ class PlayingState(BaseState):
 
         self.animate_wager_placement(
             wager,
-            (170, 300),
+            (170, 360),
         )
 
         
@@ -696,7 +734,6 @@ class PlayingState(BaseState):
         return None
 
 
-    
     def take_down_test_lay_wager(self) -> None:
         wager = self.engine.get_wager(
             self.player,
@@ -719,7 +756,6 @@ class PlayingState(BaseState):
             wager,
             vig_refund,
         )
-
 
 
     def place_test_buy_wager(self) -> None:

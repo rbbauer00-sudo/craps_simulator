@@ -166,9 +166,9 @@ class WagerAnimationController:
                         f"Unhandled resolution: {result.resolution}"
                     )
 
-            if self.pending_losses:
-                self.payout_stage = "collecting_losses"
-                self.start_next_loss()
+        if self.pending_losses:
+            self.payout_stage = "collecting_losses"
+            self.start_next_loss()
 
     def start_next_loss(self) -> None:
         if not self.pending_losses:

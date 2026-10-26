@@ -76,7 +76,7 @@ class PuckSprite(pg.sprite.Sprite):
         )
 
         text = self.font.render(
-            f"{self.point}" if self.point else "OFF",
+            f"ON" if self.point else "OFF",
             True,
             black if self.point else white
         )
