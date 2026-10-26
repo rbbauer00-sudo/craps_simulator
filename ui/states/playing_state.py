@@ -83,11 +83,15 @@ class PlayingState(BaseState):
         self.visible_sprites = pg.sprite.Group()
         self.clickable_sprites = pg.sprite.Group()
         self.moving_wagers: list [WagerSprite] = []
+        self.removing_wagers: list[WagerSprite] = []
         self.placing_wagers: list[WagerSprite] = []
-        self.placing_vig_chips: list[ChipSprite] = []
+        self.placing_vig_chips: dict[Wager, ChipSprite] = {}
+        self.refunding_vig_chips: list[ChipSprite] = []
         self.vig_sprites: dict[Wager, VigSprite] = {}
         self.wager_sprites: dict[Wager, WagerSprite] = {}
-
+        self.renewal_payouts: list[tuple[ChipSprite, int Wager]] = []
+        self.renewal_vig_chips: list[ChipSprite] = []
+        self.renewing_vig: set[Wager] = set()
 
 
         # Game elements
@@ -139,6 +143,8 @@ class PlayingState(BaseState):
             self.roll_phase is not RollPhase.READY
             or bool(self.placing_wagers)
             or bool(self.placing_vig_chips)
+            or bool(self.removing_wagers)
+            or bool(self.refunding_vig_chips)
         )
 
     @property
@@ -185,9 +191,9 @@ class PlayingState(BaseState):
                 duration=0.4
             )
 
-            self.placing_vig_chips.append(vig_chip)
+            self.placing_vig_chips[wager] = vig_chip
 
-            self.player_sprite.sync_bankroll()
+        self.player_sprite.sync_bankroll()
 
 
     def start_wager_animation(self) -> None:
@@ -200,6 +206,9 @@ class PlayingState(BaseState):
         self.payout_sprites.clear()
         self.returning_wagers.clear()
         self.moving_wagers.clear()
+        self.renewal_payouts.clear()
+        self.renewal_vig_chips.clear()
+        self.renewing_vig.clear()
 
         active_wagers = set(self.engine.wagers)
         self.payout_stage = "arriving"
@@ -218,19 +227,26 @@ class PlayingState(BaseState):
                 self.resolving_sprites.append(sprite)
 
             elif result.resolution is Resolution.WIN:
-                if result.profit <= 0:
+                wager = result.wager
+
+                if wager not in active_wagers:
+                    self.returning_wagers.append(sprite)
+
+                renewal_vig = self.renewed_vig_for(wager)
+
+                if result.profit <= 0 and renewal_vig <= 0:
                     continue
 
                 x, y = sprite.rect.center
 
+                # Show gross winnings arriving from dealer.
+                gross_profit = result.profit + renewal_vig
+
                 payout = ChipSprite(
-                    result.profit,
+                    gross_profit,
                     self.dealer_position,
                     self.visible_sprites,
                 )
-
-                if result.wager not in active_wagers:
-                    self.returning_wagers.append(sprite)
 
                 payout.move_to(
                     (x + 55, y),
@@ -239,6 +255,11 @@ class PlayingState(BaseState):
                 )
 
                 self.payout_sprites.append(payout)
+
+                if renewal_vig > 0:
+                    self.renewal_payouts.append(
+                        (payout, result.profit, wager)
+                    )
 
             elif result.resolution is Resolution.MOVE:
                 target = result.move_to
@@ -335,11 +356,42 @@ class PlayingState(BaseState):
                 return True
 
 
+    def update_wager_removal(self) -> None:
+        moving = [
+            *self.removing_wagers,
+            *self.refunding_vig_chips,
+        ]
+
+        if not moving:
+            return
+
+        if any(sprite.is_animating for sprite in moving):
+            return
+
+        # Wager principal has reached the player.
+        for sprite in self.removing_wagers:
+            sprite.kill()
+            self.wager_sprites.pop(sprite.wager, None)
+
+        self.removing_wagers.clear()
+
+        # Refund commission has reached the player.
+        for sprite in self.refunding_vig_chips:
+            sprite.kill()
+
+        self.refunding_vig_chips.clear()
+
+        # Reveal the total refund only after arrival.
+        self.player_sprite.sync_bankroll()
+        self.player_sprite.auto_sync = True
+
+
+
     def sync_vig_sprites(self) -> None:
         for wager, parent in self.wager_sprites.items():
             vig = wager.collected_vig
 
-            if vig > 0:
+            if vig > 0 and wager not in self.placing_vig_chips:
                 if wager not in self.vig_sprites:
                     self.vig_sprites[wager] = VigSprite(parent)
 
@@ -383,6 +435,26 @@ class PlayingState(BaseState):
     def finish_roll(self) -> None:
         self.current_roll = None
         self.roll_phase = RollPhase.READY
+
+        
+    def renewed_vig_for(self, wager: Wager) -> int:
+        # Only continuing wagers need a renewed commission.
+        if wager not in self.engine.wagers:
+            return 0
+
+        if wager.definition.wager_type is WagerType.LAY_BET:
+            return wager.collected_vig
+
+        if (
+            wager.definition.wager_type is WagerType.PLACE_BET
+            and wager.is_buy
+            and self.engine.settings.buy_vig_setting
+            is VigSetting.UP_FRONT
+        ):
+            return wager.collected_vig
+
+        return 0
+
 
 
     def handle_event(self, event: pg.event.Event) -> None:
@@ -449,6 +521,12 @@ class PlayingState(BaseState):
                 else:
                     print("No eligible wager for odds.")
 
+            elif event.key == pg.K_x:
+                try:
+                    self.take_down_test_lay_wager()
+                except GameRuleViolation as exc:
+                    print(f"Cannot remove Lay wager: {exc}")
+
 
         elif event.type == pg.MOUSEBUTTONDOWN:
             if event.button == 1:
@@ -484,11 +562,12 @@ class PlayingState(BaseState):
             if sprite.is_animating
         ]
 
-        for sprite in self.placing_vig_chips[:]:
+        for wager, sprite in list(self.placing_vig_chips.items()):
             if not sprite.is_animating:
                 sprite.kill()
-                self.placing_vig_chips.remove(sprite)
+                del self.placing_vig_chips[wager]
 
+        self.update_wager_removal()
         self.sync_vig_sprites()
 
         match self.roll_phase:
@@ -510,6 +589,7 @@ class PlayingState(BaseState):
             case RollPhase.DICE_RETURNING:
                 if self.dice_return_complete:
                     self.finish_roll()
+
 
 
     def draw(self, screen: pg.Surface):
@@ -724,3 +804,59 @@ class PlayingState(BaseState):
 
         return None
 
+
+    def take_down_test_lay_wager(self) -> None:
+        wager = next(
+            (
+                wager
+                for wager in self.engine.wagers
+                if (
+                    wager.player is self.player
+                    and wager.definition.wager_type
+                    is WagerType.LAY_BET
+                )
+            ),
+            None,
+        )
+
+        if wager is None:
+            print("No Lay wager to remove.")
+            return
+
+        sprite = self.wager_sprites[wager]
+        vig_refund = wager.collected_vig
+
+        # The engine validates the removal and
+        # immediately refunds the actual bankroll.
+        self.engine.take_down_wager(wager)
+
+        # Freeze the displayed bankroll at its
+        # pre-refund value.
+        self.player_sprite.auto_sync = False
+
+        player_position = self.player_sprite.rect.center
+
+        # Return the original wager.
+        sprite.move_to(
+            player_position,
+            duration=0.4,
+        )
+
+        self.removing_wagers.append(sprite)
+
+        # Return the refundable commission separately.
+        if vig_refund > 0:
+            refund = ChipSprite(
+                vig_refund,
+                self.dealer_position,
+                self.visible_sprites,
+                radius=14,
+                color=(180, 130, 45),
+            )
+
+            refund.move_to(
+                player_position,
+                duration=0.4,
+            )
+
+            self.refunding_vig_chips.append(refund)
