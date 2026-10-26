@@ -131,11 +131,7 @@ class PlayingState(BaseState):
     def is_animating(self) -> bool:
         return (
             self.roll_phase is not RollPhase.READY
-            or bool(self.wager_animator.placing_wagers)
-            or bool(self.wager_animator.placing_vig_chips)
-            or bool(self.wager_animator.removing_wagers)
-            or bool(self.wager_animator.refunding_vig_chips)
-            or bool(self.wager_animator.adjustment_chips)
+            or self.wager_animator.is_animating
         )
 
     @property
@@ -392,15 +388,12 @@ class PlayingState(BaseState):
         self.dice_sprite.roll(self.current_roll.roll)
 
 
-    def update(self, dt: float):
+
+    def update(self, dt: float) -> None:
         self.visible_sprites.update(dt)
         self.dice_sprite.update(dt)
 
-        self.wager_animator.update_placement()
-
-        self.wager_animator.update_adjustment()
-
-        self.wager_animator.update_removal()
+        wagers_complete = self.wager_animator.update()
         self.sync_vig_sprites()
 
         match self.roll_phase:
@@ -412,7 +405,7 @@ class PlayingState(BaseState):
                     self.start_wager_animation()
 
             case RollPhase.WAGERS_RESOLVING:
-                if self.wager_animator.update():
+                if wagers_complete:
                     self.start_puck_animation()
 
             case RollPhase.PUCK_MOVING:
@@ -422,6 +415,7 @@ class PlayingState(BaseState):
             case RollPhase.DICE_RETURNING:
                 if self.dice_return_complete:
                     self.finish_roll()
+
 
 
     def draw(self, screen: pg.Surface):

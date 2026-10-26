@@ -40,6 +40,19 @@ class WagerAnimationController:
         self.payout_stage = "idle"
 
 
+    @property
+    def is_animating(self) -> bool:
+        return (
+            self.payout_stage != "idle"
+            or bool(self.placing_wagers)
+            or bool(self.placing_vig_chips)
+            or bool(self.removing_wagers)
+            or bool(self.refunding_vig_chips)
+            or bool(self.adjustment_chips)
+        )
+
+
+
     def start(self) -> None:
         state = self.state
 
@@ -406,7 +419,7 @@ class WagerAnimationController:
         self.adjusting_vig.clear()
    
 
-    def update(self) -> bool:
+    def update_resolution(self) -> bool:
         state = self.state
 
         match self.payout_stage:
@@ -499,3 +512,19 @@ class WagerAnimationController:
                     f"Unknown payout stage: {self.payout_stage}"
                 )
 
+
+    def update(self) -> bool:
+        """
+        Update all wager animations.
+
+        Returns True only when the current roll's
+        wager-resolution animation finishes.
+        """
+        self.update_placement()
+        self.update_adjustment()
+        self.update_removal()
+
+        if self.payout_stage != "idle":
+            return self.update_resolution()
+
+        return False
