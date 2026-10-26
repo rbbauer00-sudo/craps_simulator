@@ -5,7 +5,7 @@ from .roll_phase import RollPhase
 from pygame.constants import *
 from engine import GameRollResult, Wager, defs, Resolution, WagerType, GameRuleViolation, VigSetting
 from ui.game_elements import DiceSprite, PuckSprite, WagerSprite, PlayerSprite, ChipSprite, VigSprite
-
+from ui.animations.wager_animation_controller import WagerAnimationController
 
 from typing import TYPE_CHECKING
 if TYPE_CHECKING:
@@ -138,6 +138,7 @@ class PlayingState(BaseState):
         self.payout_sprites: list[ChipSprite] = []
 
         self.payout_stage = "idle"
+        self.wager_animator = WagerAnimationController(self)
 
 
     @property
@@ -154,7 +155,6 @@ class PlayingState(BaseState):
     @property
     def dice_animation_complete(self) -> bool:
         return not self.dice_sprite.is_animating
-
 
 
     def animate_wager_placement(
@@ -201,184 +201,12 @@ class PlayingState(BaseState):
 
 
     def start_wager_animation(self) -> None:
-        if self.current_roll is None:
-            raise RuntimeError("No current roll to resolve.")
-
         self.roll_phase = RollPhase.WAGERS_RESOLVING
-
-        self.resolving_sprites.clear()
-        self.payout_sprites.clear()
-        self.returning_wagers.clear()
-        self.moving_wagers.clear()
-        self.renewal_payouts.clear()
-        self.renewal_vig_chips.clear()
-        self.renewing_vig.clear()
-
-        active_wagers = set(self.engine.wagers)
-        self.payout_stage = "arriving"
-
-        for result in self.current_roll.wager_results:
-            sprite = self.wager_sprites.get(result.wager)
-
-            if sprite is None:
-                continue
-
-            match result.resolution:
-
-                case Resolution.LOSE:
-                    sprite.move_to(
-                        self.dealer_position,
-                        duration=0.4,
-                    )
-                    self.resolving_sprites.append(sprite)
-
-                case Resolution.WIN:
-                    wager = result.wager
-
-                    if wager not in active_wagers:
-                        self.returning_wagers.append(sprite)
-
-                    renewal_vig = self.winning_vig_for(wager)
-                    gross_profit = result.profit + renewal_vig
-
-                    if renewal_vig > 0:
-                        self.renewing_vig.add(wager)
-
-                    if gross_profit <= 0:
-                        continue
-
-                    x, y = sprite.rect.center
-
-                    payout = ChipSprite(
-                        gross_profit,
-                        self.dealer_position,
-                        self.visible_sprites,
-                    )
-
-                    payout.move_to(
-                        (x + 55, y),
-                        duration=0.4,
-                        hold=0.35,
-                    )
-
-                    self.payout_sprites.append(payout)
-
-                    if renewal_vig > 0:
-                        self.renewal_payouts.append(
-                            (payout, result.profit, wager)
-                        )
-
-                case Resolution.MOVE:
-                    target = result.move_to
-
-                    if target not in self.COME_POSITIONS:
-                        raise ValueError(
-                            f"No Come position defined for {target}"
-                        )
-
-                    sprite.move_to(
-                        self.COME_POSITIONS[target],
-                        duration=0.4,
-                    )
-
-                    self.moving_wagers.append(sprite)
-
-                case Resolution.REMOVE:
-                    self.returning_wagers.append(sprite)
-
-                case Resolution.PUSH | Resolution.NONE:
-                    pass
-
-                case _:
-                    raise ValueError(
-                        f"Unhandled resolution: {result.resolution}"
-                    )
+        self.wager_animator.start()
 
 
 
-    def update_wager_animation(self) -> bool:
-        match self.payout_stage:
-            
-            case "arriving":
-                moving = [
-                    *self.resolving_sprites,
-                    *self.payout_sprites,
-                    *self.moving_wagers,
-                ]
-
-                if any(sprite.is_animating for sprite in moving):
-                    return False
-
-                # Remove losing wagers.
-                for sprite in self.resolving_sprites:
-                    sprite.kill()
-                    self.wager_sprites.pop(sprite.wager, None)
-
-                    if getattr(self, "test_wager", None) is sprite.wager:
-                        del self.test_wager
-
-                self.resolving_sprites.clear()
-                self.moving_wagers.clear()
-
-                self.split_renewal_payouts()
-
-                # Send payouts back to the player.
-                player_position = self.player_sprite.rect.center
-
-                for sprite in self.payout_sprites:
-                    sprite.move_to(
-                        player_position,
-                        duration=0.4,
-                    )
-
-                for sprite in self.returning_wagers:
-                    sprite.move_to(
-                        player_position,
-                        duration=0.4,
-                    )
-
-                self.payout_stage = "returning"
-                return False
-
-            case "returning":
-                moving = [
-                    *self.payout_sprites,
-                    *self.returning_wagers,
-                    *self.renewal_vig_chips,
-                ]
-
-                if any(sprite.is_animating for sprite in moving):
-                    return False
-
-                # All winnings have reached the marquee.
-                for sprite in self.payout_sprites:
-                    sprite.kill()
-
-                for sprite in self.returning_wagers:
-                    sprite.kill()
-                    self.wager_sprites.pop(sprite.wager, None)
-
-                for sprite in self.renewal_vig_chips:
-                    sprite.kill()
-
-                self.renewal_vig_chips.clear()
-                self.renewing_vig.clear()
-
-                self.returning_wagers.clear()
-
-                self.payout_sprites.clear()
-
-                # Update the displayed bankroll.
-                self.player_sprite.sync_bankroll()
-                self.player_sprite.auto_sync = True
-
-                self.sync_wager_sprites()
-                self.payout_stage = "idle"
-
-                return True
-
-            case _:
-                return True
+    
 
 
     def update_wager_removal(self) -> None:
@@ -440,36 +268,7 @@ class PlayingState(BaseState):
 
 
     
-    def split_renewal_payouts(self) -> None:
-        for payout, net_profit, wager in self.renewal_payouts:
-            vig = payout.value - net_profit
-
-            # Convert the gross chip into the net payout.
-            payout.value = net_profit
-            payout.render_image()
-
-            # Create the commission chip at the payout position.
-            commission = ChipSprite(
-                vig,
-                payout.rect.center,
-                self.visible_sprites,
-                radius=14,
-                color=(180, 130, 45),
-            )
-
-            commission.move_to(
-                self.dealer_position,
-                duration=0.4,
-            )
-
-            self.renewal_vig_chips.append(commission)
-
-            # A zero-value net payout has nothing to return.
-            if net_profit <= 0:
-                payout.kill()
-                self.payout_sprites.remove(payout)
-
-        self.renewal_payouts.clear()
+   
 
 
     def sync_vig_sprites(self) -> None:
@@ -583,7 +382,7 @@ class PlayingState(BaseState):
                 try:
                     self.place_test_come_wager()
                 except GameRuleViolation:
-                    pass
+                    print("Come bet not allowed.")
 
             elif event.key == pg.K_y:
                 try:
@@ -722,7 +521,7 @@ class PlayingState(BaseState):
                     self.start_wager_animation()
 
             case RollPhase.WAGERS_RESOLVING:
-                if self.update_wager_animation():
+                if self.wager_animator.update():
                     self.start_puck_animation()
 
             case RollPhase.PUCK_MOVING:
