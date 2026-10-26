@@ -79,10 +79,7 @@ class WagerAnimationController:
                 self.start_minimal()
         
             case AnimationMode.INSTANT:
-                raise NotImplementedError(
-                    f"{self.settings.mode.name} mode "
-                    "is not implemented yet."
-                )
+                self.start_instant()
 
 
     def start_full(self) -> None:
@@ -362,6 +359,66 @@ class WagerAnimationController:
                     )
 
 
+    def start_instant(self) -> None:
+        state = self.state
+
+        if state.current_roll is None:
+            raise RuntimeError("No current roll to resolve.")
+
+        self.reset_resolution()
+        self.payout_stage = "instant"
+
+        active_wagers = set(state.engine.wagers)
+
+        for result in state.current_roll.wager_results:
+            sprite = state.wager_sprites.get(result.wager)
+
+            if sprite is None:
+                continue
+
+            wager = result.wager
+
+            match result.resolution:
+
+                case Resolution.WIN:
+                    # Some winning wagers remain active.
+                    if wager not in active_wagers:
+                        sprite.kill()
+                        state.wager_sprites.pop(wager, None)
+
+                case Resolution.LOSE | Resolution.REMOVE:
+                    sprite.kill()
+                    state.wager_sprites.pop(wager, None)
+
+                    if getattr(state, "test_wager", None) is wager:
+                        del state.test_wager
+
+                case Resolution.MOVE:
+                    target = result.move_to
+
+                    if target not in state.COME_POSITIONS:
+                        raise ValueError(
+                            f"No Come position defined for {target}"
+                        )
+
+                    sprite.rect.center = state.COME_POSITIONS[target]
+
+                case Resolution.PUSH | Resolution.NONE:
+                    pass
+
+                case _:
+                    raise ValueError(
+                        f"Unhandled resolution: {result.resolution}"
+                    )
+
+        # Synchronize graphical state with the engine.
+        state.sync_wager_sprites()
+
+        # The engine has already applied all accounting.
+        state.player_sprite.sync_bankroll()
+        state.player_sprite.auto_sync = True
+
+
     def split_renewal_payouts(self) -> None:
         state = self.state
 
@@ -399,6 +456,19 @@ class WagerAnimationController:
         destination: tuple[float, float],
     ) -> None:
         state = self.state
+
+        if self.settings.mode is AnimationMode.INSTANT:
+            sprite = WagerSprite(
+                wager,
+                destination,
+                state.visible_sprites,
+            )
+
+            state.wager_sprites[wager] = sprite
+
+            state.player_sprite.sync_bankroll()
+            return
+
         player_position = state.player_sprite.rect.center
 
         sprite = WagerSprite(
@@ -440,6 +510,16 @@ class WagerAnimationController:
         vig_change: int,
     ) -> None:
         state = self.state
+
+        if self.settings.mode is AnimationMode.INSTANT:
+            sprite = state.wager_sprites[wager]
+
+            sprite.sync_value()
+            sprite.auto_sync_value = True
+
+            state.player_sprite.sync_bankroll()
+            state.player_sprite.auto_sync = True
+            return
 
         sprite = state.wager_sprites[wager]
         player_position = state.player_sprite.rect.center
@@ -526,6 +606,14 @@ class WagerAnimationController:
         vig_refund: int,
     ) -> None:
         state = self.state
+
+        if self.settings.mode is AnimationMode.INSTANT:
+            sprite = state.wager_sprites.pop(wager)
+            sprite.kill()
+
+            state.player_sprite.sync_bankroll()
+            state.player_sprite.auto_sync = True
+            return
 
         sprite = state.wager_sprites[wager]
         player_position = state.player_sprite.rect.center
@@ -639,6 +727,10 @@ class WagerAnimationController:
         state = self.state
 
         match self.payout_stage:
+            
+            case "instant":
+                self.payout_stage = "idle"
+                return True
 
             case "minimal":
                 if any(
