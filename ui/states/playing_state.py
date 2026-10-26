@@ -87,6 +87,17 @@ class PlayingState(BaseState):
         self.vig_sprites: dict[Wager, VigSprite] = {}
         self.wager_sprites: dict[Wager, WagerSprite] = {}
 
+        self.selected_chip = 25
+
+        # UI elements
+        self.chip_buttons = {
+            5: pg.FRect(400, 680, 85, 55),
+            10: pg.FRect(495, 680, 85, 55),
+            25: pg.FRect(590, 680, 85, 55),
+            50: pg.FRect(685, 680, 85, 55),
+            100: pg.FRect(780, 680, 85, 55),
+        }
+
         # Game elements
         self.betting_areas = {
             WagerType.PASS_LINE: pg.FRect(390, 505, 120, 70),
@@ -95,6 +106,8 @@ class PlayingState(BaseState):
             WagerType.PLACE_BET: pg.FRect(350, 300, 120, 70),
             WagerType.LAY_BET: pg.FRect(110, 340, 120, 70),
         }
+
+
 
         self.dice_sprite = DiceSprite(
             size= 50,
@@ -262,12 +275,15 @@ class PlayingState(BaseState):
 
             case pg.MOUSEBUTTONDOWN:
                 if event.button == 1:
+                    if self.handle_chip_click(event.pos):
+                        return
+
                     if self.dice_sprite.rect.collidepoint(event.pos):
                         self.roll()
                     else:
                         self.handle_table_click(event.pos)
-            
-            
+                        
+                        
             case pg.KEYDOWN:
                 match event.key:
 
@@ -410,6 +426,19 @@ class PlayingState(BaseState):
                 print(f"Cannot place wager: {exc}")
 
             return
+
+    
+    def handle_chip_click(
+        self,
+        position: tuple[int, int],
+    ) -> bool:
+        for value, rect in self.chip_buttons.items():
+            if rect.collidepoint(position):
+                self.selected_chip = value
+                return True
+
+        return False
+
         
 
     def roll(self) -> None:
@@ -542,6 +571,33 @@ class PlayingState(BaseState):
                 text.get_frect(center=label_position),
             )
 
+        for value, rect in self.chip_buttons.items():
+            selected = value == self.selected_chip
+
+            pg.draw.ellipse(
+                screen,
+                (35, 105, 185) if selected else (70, 70, 70),
+                rect,
+            )
+
+            pg.draw.ellipse(
+                screen,
+                (245, 245, 245) if selected else (150, 150, 150),
+                rect,
+                width=3 if selected else 1,
+            )
+
+            text = self.app.font.render(
+                f"${value}",
+                True,
+                (255, 255, 255),
+            )
+
+            screen.blit(
+                text,
+                text.get_frect(center=rect.center),
+            )
+
         self.visible_sprites.draw(screen)
 
         for sprite in self.vig_sprites.values():
@@ -560,7 +616,7 @@ class PlayingState(BaseState):
             definition=defs.PASS_LINE,
             player=self.player,
             game=self.engine,
-            value=25,
+            value=self.selected_chip,
         )
 
         self.engine.place_wager(wager)
@@ -593,7 +649,7 @@ class PlayingState(BaseState):
             definition=defs.COME,
             player=self.player,
             game=self.engine,
-            value=25,
+            value=self.selected_chip,
         )
 
         self.engine.place_wager(wager)
@@ -609,7 +665,7 @@ class PlayingState(BaseState):
             definition=defs.DONT_PASS,
             player=self.player,
             game=self.engine,
-            value=25,
+            value=self.selected_chip,
         )
 
         self.engine.place_wager(wager)
