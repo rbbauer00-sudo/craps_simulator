@@ -6,6 +6,7 @@ from pygame.constants import *
 from engine import GameRollResult, Wager, defs, Resolution, WagerType, GameRuleViolation, VigSetting
 from ui.game_elements import DiceSprite, PuckSprite, WagerSprite, PlayerSprite, ChipSprite, VigSprite
 from ui.animations.wager_animation_controller import WagerAnimationController
+from ui.animations.animation_settings import AnimationMode
 
 from typing import TYPE_CHECKING
 if TYPE_CHECKING:
@@ -373,12 +374,13 @@ class PlayingState(BaseState):
                                     print(f"Cannot adjust Lay bet: {exc}")
 
 
+
     def roll(self) -> None:
         if self.is_animating:
             return
-        
-        parsed = self.forced_roll_buffer.parse() 
-        
+
+        parsed = self.forced_roll_buffer.parse()
+
         if parsed is None:
             return
 
@@ -386,9 +388,34 @@ class PlayingState(BaseState):
         self.player_sprite.auto_sync = False
 
         self.current_roll = self.engine.roll(*parsed)
+
+        if self.app.animation_settings.mode is AnimationMode.INSTANT:
+            # Show the final dice values at their home position.
+            self.dice_sprite.show_roll_instant(
+                self.current_roll.roll
+            )
+
+            # Resolve wager graphics without animation.
+            self.start_wager_animation()
+
+            if not self.wager_animator.update():
+                raise RuntimeError(
+                    "Instant wager resolution did not complete."
+                )
+
+            # Position the puck at the engine's new point.
+            self.puck_sprite.snap_to(
+                self.current_roll.point_after
+            )
+
+            # Restore the READY state for the next roll.
+            self.finish_roll()
+            return
+
+        # Existing animated roll behavior.
         self.roll_phase = RollPhase.DICE_ROLLING
-        
         self.dice_sprite.roll(self.current_roll.roll)
+
 
 
     def update(self, dt: float) -> None:

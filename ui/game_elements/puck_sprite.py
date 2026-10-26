@@ -142,3 +142,15 @@ class PuckSprite(pg.sprite.Sprite):
 
         if progress >= 1.0:
             self.is_animating = False
+
+
+    def snap_to(self, point: int | None) -> None:
+        self.is_animating = False
+        self.point = point
+
+        self.rect.center = self.position_for(point)
+
+        self.start_position = Vector(self.rect.center)
+        self.target_position = self.start_position.copy()
+
+        self.render_image()

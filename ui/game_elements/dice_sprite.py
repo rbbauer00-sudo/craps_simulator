@@ -251,6 +251,7 @@ class DiceSprite(pg.sprite.Sprite):
             round(pos2.y),
         )
 
+
     def start_return(self) -> None:
         if self.is_animating or self.is_returning:
             return
@@ -262,4 +263,13 @@ class DiceSprite(pg.sprite.Sprite):
         self.is_returning = True
 
 
-    
+    def show_roll_instant(self, roll_result: RollResult) -> None:
+        self.is_animating = False
+        self.is_returning = False
+        self.final_values = None
+
+        self.die1.rect.topleft = self.home1
+        self.die2.rect.topleft = self.home2
+
+        self.die1.roll(roll_result.d1)
+        self.die2.roll(roll_result.d2)
