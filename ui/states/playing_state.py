@@ -82,16 +82,12 @@ class PlayingState(BaseState):
 
         self.visible_sprites = pg.sprite.Group()
         self.clickable_sprites = pg.sprite.Group()
-        self.moving_wagers: list [WagerSprite] = []
         self.removing_wagers: list[WagerSprite] = []
         self.placing_wagers: list[WagerSprite] = []
         self.placing_vig_chips: dict[Wager, ChipSprite] = {}
         self.refunding_vig_chips: list[ChipSprite] = []
         self.vig_sprites: dict[Wager, VigSprite] = {}
         self.wager_sprites: dict[Wager, WagerSprite] = {}
-        self.renewal_payouts: list[tuple[ChipSprite, int, Wager]] = []
-        self.renewal_vig_chips: list[ChipSprite] = []
-        self.renewing_vig: set[Wager] = set()
         self.adjustment_chips: list[ChipSprite] = []
         self.adjusting_vig: set[Wager] = set()
         self.adjustment_refund_pending = False
@@ -133,11 +129,7 @@ class PlayingState(BaseState):
             -50,
         )
 
-        self.resolving_sprites: list[WagerSprite] = []
-        self.returning_wagers: list[WagerSprite] = []
-        self.payout_sprites: list[ChipSprite] = []
 
-        self.payout_stage = "idle"
         self.wager_animator = WagerAnimationController(self)
 
 
@@ -205,10 +197,6 @@ class PlayingState(BaseState):
         self.wager_animator.start()
 
 
-
-    
-
-
     def update_wager_removal(self) -> None:
         moving = [
             *self.removing_wagers,
@@ -267,34 +255,6 @@ class PlayingState(BaseState):
         self.adjusting_vig.clear()
 
 
-    
-   
-
-
-    def sync_vig_sprites(self) -> None:
-        for wager, parent in self.wager_sprites.items():
-            show_indicator = (
-                wager.collected_vig > 0
-                and not parent.is_animating
-                and wager not in self.placing_vig_chips
-                and wager not in self.renewing_vig
-                and wager not in self.adjusting_vig
-            )
-
-            if show_indicator:
-                if wager not in self.vig_sprites:
-                    self.vig_sprites[wager] = VigSprite(parent)
-            else:
-                self.vig_sprites.pop(wager, None)
-
-        for wager in list(self.vig_sprites):
-            if wager not in self.wager_sprites:
-                del self.vig_sprites[wager]
-
-        for sprite in self.vig_sprites.values():
-            sprite.update(0.0)
-
-
     def start_puck_animation(self) -> None:
         self.roll_phase = RollPhase.PUCK_MOVING
 
@@ -305,6 +265,7 @@ class PlayingState(BaseState):
             self.current_roll.point_before,
             self.current_roll.point_after,
         )
+
 
     @property
     def puck_animation_complete(self) -> bool:
@@ -324,8 +285,8 @@ class PlayingState(BaseState):
     def finish_roll(self) -> None:
         self.current_roll = None
         self.roll_phase = RollPhase.READY
-
-        
+    
+   
     def winning_vig_for(self, wager: Wager) -> int:
         if wager not in self.engine.wagers:
             return 0
@@ -341,6 +302,47 @@ class PlayingState(BaseState):
 
             case _:
                 return 0
+
+
+    def sync_vig_sprites(self) -> None:
+        for wager, parent in self.wager_sprites.items():
+            show_indicator = (
+                wager.collected_vig > 0
+                and not parent.is_animating
+                and wager not in self.placing_vig_chips
+                and wager not in self.wager_animator.renewing_vig
+                and wager not in self.adjusting_vig
+            )
+
+            if show_indicator:
+                if wager not in self.vig_sprites:
+                    self.vig_sprites[wager] = VigSprite(parent)
+            else:
+                self.vig_sprites.pop(wager, None)
+
+        for wager in list(self.vig_sprites):
+            if wager not in self.wager_sprites:
+                del self.vig_sprites[wager]
+
+        for sprite in self.vig_sprites.values():
+            sprite.update(0.0)
+
+
+    def sync_wager_sprites(self) -> None:
+        active_wagers = set(self.engine.wagers)
+
+        # Remove sprites for resolved wagers.
+        for wager, sprite in list(
+            self.wager_sprites.items()
+        ):
+            if wager not in active_wagers:
+                sprite.kill()
+                del self.wager_sprites[wager]
+
+        # Future: create sprites for wagers
+        # introduced outside the UI.
+
+        
 
 
     def handle_event(self, event: pg.event.Event) -> None:
@@ -548,19 +550,6 @@ class PlayingState(BaseState):
             screen.blit(sprite.image, sprite.rect)
 
 
-    def sync_wager_sprites(self) -> None:
-        active_wagers = set(self.engine.wagers)
-
-        # Remove sprites for resolved wagers.
-        for wager, sprite in list(
-            self.wager_sprites.items()
-        ):
-            if wager not in active_wagers:
-                sprite.kill()
-                del self.wager_sprites[wager]
-
-        # Future: create sprites for wagers
-        # introduced outside the UI.
 
 
 
