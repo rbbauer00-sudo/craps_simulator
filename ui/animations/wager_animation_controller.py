@@ -168,7 +168,124 @@ class WagerAnimationController:
                         f"Unhandled resolution: {result.resolution}"
                     )
 
-    
+
+    def start_simultaneous(self) -> None:
+        state = self.state
+
+        if state.current_roll is None:
+            raise RuntimeError("No current roll to resolve.")
+
+        self.reset_resolution()
+        self.payout_stage = "simultaneous"
+
+        active_wagers = set(state.engine.wagers)
+        player_position = state.player_sprite.rect.center
+        duration = self.travel_duration()
+
+        for result in state.current_roll.wager_results:
+            sprite = state.wager_sprites.get(result.wager)
+
+            if sprite is None:
+                continue
+
+            match result.resolution:
+
+                case Resolution.LOSE:
+                    sprite.move_to(
+                        state.dealer_position,
+                        duration=duration,
+                    )
+                    self.resolving_sprites.append(sprite)
+
+                case Resolution.WIN:
+                    wager = result.wager
+
+                    # Return principal if the engine
+                    # has removed the winning wager.
+                    if wager not in active_wagers:
+                        sprite.move_to(
+                            player_position,
+                            duration=duration,
+                        )
+                        self.returning_wagers.append(sprite)
+
+                    vig = state.winning_vig_for(wager)
+
+                    if vig > 0:
+                        self.renewing_vig.add(wager)
+
+                    # The engine has already calculated
+                    # the player's net profit.
+                    if result.profit > 0:
+                        x, y = sprite.rect.center
+
+                        payout = ChipSprite(
+                            result.profit,
+                            (x + 55, y),
+                            state.visible_sprites,
+                        )
+
+                        payout.move_to(
+                            player_position,
+                            duration=duration,
+                        )
+
+                        self.payout_sprites.append(payout)
+
+                    # Commission is collected separately,
+                    # starting beside the winning wager.
+                    if vig > 0:
+                        x, y = sprite.rect.center
+
+                        commission = ChipSprite(
+                            vig,
+                            (x + 55, y),
+                            state.visible_sprites,
+                            radius=14,
+                            color=(180, 130, 45),
+                        )
+
+                        commission.move_to(
+                            state.dealer_position,
+                            duration=duration,
+                        )
+
+                        self.renewal_vig_chips.append(
+                            commission
+                        )
+
+                case Resolution.MOVE:
+                    target = result.move_to
+
+                    if target not in state.COME_POSITIONS:
+                        raise ValueError(
+                            f"No Come position defined for {target}"
+                        )
+
+                    sprite.move_to(
+                        state.COME_POSITIONS[target],
+                        duration=duration,
+                    )
+
+                    self.moving_wagers.append(sprite)
+
+                case Resolution.REMOVE:
+                    sprite.move_to(
+                        player_position,
+                        duration=duration,
+                    )
+
+                    self.returning_wagers.append(sprite)
+
+                case Resolution.PUSH | Resolution.NONE:
+                    pass
+
+                case _:
+                    raise ValueError(
+                        f"Unhandled resolution: {result.resolution}"
+                    )
+
+   
     def split_renewal_payouts(self) -> None:
         state = self.state
 

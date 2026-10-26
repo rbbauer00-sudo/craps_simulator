@@ -1,4 +1,4 @@
-from ui import CrapsApp, AnimationSettings
+from ui import CrapsApp, AnimationSettings, AnimationMode
 from engine import GameSettings, VigSetting
 
 def main():
@@ -7,7 +7,8 @@ def main():
     )
 
     animation_settings = AnimationSettings(
-        speed_multiplier=0.75,
+        mode=AnimationMode.SIMULTANEOUS,
+        speed=0.75,
     )
 
     app = CrapsApp(

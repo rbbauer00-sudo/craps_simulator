@@ -12,13 +12,13 @@ class AnimationMode(Enum):
 @dataclass(frozen=True)
 class AnimationSettings:
     mode: AnimationMode = AnimationMode.FULL
-    speed_multiplier: float = 1.0
+    speed: float = 1.0
 
     def __post_init__(self) -> None:
-        if not 0 < self.speed_multiplier < float("inf"):
+        if not 0 < self.speed < float("inf"):
             raise ValueError(
                 "Animation speed must be positive and finite."
             )
 
     def duration(self, seconds: float) -> float:
-        return seconds / self.speed_multiplier
+        return seconds / self.speed
