@@ -83,8 +83,6 @@ class PlayingState(BaseState):
         self.visible_sprites = pg.sprite.Group()
         self.clickable_sprites = pg.sprite.Group()
         self.removing_wagers: list[WagerSprite] = []
-        self.placing_wagers: list[WagerSprite] = []
-        self.placing_vig_chips: dict[Wager, ChipSprite] = {}
         self.refunding_vig_chips: list[ChipSprite] = []
         self.vig_sprites: dict[Wager, VigSprite] = {}
         self.wager_sprites: dict[Wager, WagerSprite] = {}
@@ -137,8 +135,8 @@ class PlayingState(BaseState):
     def is_animating(self) -> bool:
         return (
             self.roll_phase is not RollPhase.READY
-            or bool(self.placing_wagers)
-            or bool(self.placing_vig_chips)
+            or bool(self.wager_animator.placing_wagers)
+            or bool(self.wager_animator.placing_vig_chips)
             or bool(self.removing_wagers)
             or bool(self.refunding_vig_chips)
             or bool(self.adjustment_chips)
@@ -154,43 +152,8 @@ class PlayingState(BaseState):
         wager: Wager,
         destination: tuple[float, float],
     ) -> None:
-        player_postion = self.player_sprite.rect.center
-        
-        sprite = WagerSprite(
-            wager,
-            player_postion,
-            self.visible_sprites,
-        )
-
-        self.wager_sprites[wager] = sprite
-
-        sprite.move_to(
-            destination,
-            duration=0.4,
-        )
-
-        self.placing_wagers.append(sprite)
-
-        vig = wager.collected_vig
-
-        if vig > 0:
-            vig_chip = ChipSprite(
-                vig,
-                player_postion, 
-                self.visible_sprites,
-                radius=14,
-                color=(180,130,45),
-            )
-
-            vig_chip.move_to(
-                self.dealer_position,
-                duration=0.4
-            )
-
-            self.placing_vig_chips[wager] = vig_chip
-
-        self.player_sprite.sync_bankroll()
-
+        self.wager_animator.place(wager, destination)
+    
 
     def start_wager_animation(self) -> None:
         self.roll_phase = RollPhase.WAGERS_RESOLVING
@@ -309,7 +272,7 @@ class PlayingState(BaseState):
             show_indicator = (
                 wager.collected_vig > 0
                 and not parent.is_animating
-                and wager not in self.placing_vig_chips
+                and wager not in self.wager_animatorplacing_vig_chips
                 and wager not in self.wager_animator.renewing_vig
                 and wager not in self.adjusting_vig
             )
@@ -342,138 +305,135 @@ class PlayingState(BaseState):
         # Future: create sprites for wagers
         # introduced outside the UI.
 
-        
-
-
+  
     def handle_event(self, event: pg.event.Event) -> None:
+        # Escape always works, even during animations.
         if event.type == pg.KEYDOWN and event.key == pg.K_ESCAPE:
             self.app.running = False
-            #from .game_menu_state import GameMenuState
-            #self.app.states.push(GameMenuState(self.app))
             return
 
         if self.is_animating:
             return
 
-        if event.type == pg.KEYDOWN:
-            if event.key in range(pg.K_0, pg.K_9 + 1) or event.key == pg.K_COMMA:
-                self.forced_roll_buffer.add(event.unicode)
+        match event.type:
 
-            elif event.key == pg.K_BACKSPACE:
-                self.forced_roll_buffer.clear()
-
-            elif event.key == pg.K_RETURN:
-                self.roll()
-
-            elif event.key == pg.K_p:
-                self.place_pass_line()
-
-            elif event.key == pg.K_t:
-                if not hasattr(self, "test_wager"):
-                    self.place_test_wager()
-
-            elif event.key == pg.K_o:
-                wager = self.find_test_odds_wager()
-
-                if wager is not None:
-                    wager.is_working = not wager.is_working
-                else: 
-                    print("No active odds wager to toggle")
-
-            elif event.key == pg.K_c:
-                try:
-                    self.place_test_come_wager()
-                except GameRuleViolation:
-                    print("Come bet not allowed.")
-
-            elif event.key == pg.K_y:
-                try:
-                    self.place_test_lay_wager()
-                except GameRuleViolation as exc:
-                    print(f"Cannot place Lay bet: {exc}")
-
-            elif event.key == pg.K_d:
-                try:
-                    self.place_test_dp_wager()
-                except GameRuleViolation as exc:
-                    print(f"Cannot place Don't Pass: {exc}")
-
-            elif event.key == pg.K_l:
-                parent = self.find_test_odds_parent()
-
-                if parent is not None:
-                    try:
-                        self.place_test_odds_wager(parent)
-                    except GameRuleViolation as exc:
-                        print(f"Cannot place odds: {exc}")
-                else:
-                    print("No eligible wager for odds.")
-
-            elif event.key == pg.K_x:
-                try:
-                    self.take_down_test_lay_wager()
-                except GameRuleViolation as exc:
-                    print(f"Cannot remove Lay wager: {exc}")
-
-            elif event.key == pg.K_b:
-                try:
-                    self.place_test_buy_wager()
-                except GameRuleViolation as exc:
-                    print(f"Cannot place Buy bet: {exc}")
-
-         
-            elif event.key in (pg.K_UP, pg.K_DOWN):
-                wager = self.engine.get_wager(
-                    self.player,
-                    WagerType.PLACE_BET,
-                    target=6,
-                )
-
-                if wager is not None:
-                    amount = (
-                        30
-                        if event.key == pg.K_UP
-                        else -30
-                    )
-
-                    if wager.value + amount > 0:
-                        try:
-                            self.adjust_test_wager(wager, amount)
-                        except GameRuleViolation as exc:
-                            print(f"Cannot adjust wager: {exc}")
+            case pg.MOUSEBUTTONDOWN:
+                if (
+                    event.button == 1
+                    and self.dice_sprite.rect.collidepoint(event.pos)
+                ):
+                    self.roll()
             
-            elif event.key in (pg.K_RIGHT, pg.K_LEFT):
-                wager = next(
-                    (
-                        w for w in self.engine.wagers
-                        if (
-                            w.player is self.player
-                            and w.definition.wager_type
-                            is WagerType.LAY_BET
-                            and w.target == 4
+            case pg.KEYDOWN:
+                match event.key:
+
+                    case key if (
+                        pg.K_0 <= key <= pg.K_9
+                        or key == pg.K_COMMA
+                    ):
+                        self.forced_roll_buffer.add(event.unicode)
+
+                    case pg.K_BACKSPACE:
+                        self.forced_roll_buffer.clear()
+
+                    case pg.K_RETURN:
+                        self.roll()
+
+                    case pg.K_p:
+                        self.place_pass_line()
+
+                    case pg.K_t:
+                        if not hasattr(self, "test_wager"):
+                            self.place_test_wager()
+
+                    case pg.K_o:
+                        wager = self.find_test_odds_wager()
+
+                        if wager is not None:
+                            wager.is_working = not wager.is_working
+                        else:
+                            print("No active odds wager to toggle.")
+
+                    case pg.K_c:
+                        try:
+                            self.place_test_come_wager()
+                        except GameRuleViolation:
+                            print("Come bet not allowed.")
+
+                    case pg.K_y:
+                        try:
+                            self.place_test_lay_wager()
+                        except GameRuleViolation as exc:
+                            print(f"Cannot place Lay bet: {exc}")
+
+                    case pg.K_d:
+                        try:
+                            self.place_test_dp_wager()
+                        except GameRuleViolation as exc:
+                            print(f"Cannot place Don't Pass: {exc}")
+
+                    case pg.K_l:
+                        parent = self.find_test_odds_parent()
+
+                        if parent is not None:
+                            try:
+                                self.place_test_odds_wager(parent)
+                            except GameRuleViolation as exc:
+                                print(f"Cannot place odds: {exc}")
+                        else:
+                            print("No eligible wager for odds.")
+
+                    case pg.K_x:
+                        try:
+                            self.take_down_test_lay_wager()
+                        except GameRuleViolation as exc:
+                            print(f"Cannot remove Lay wager: {exc}")
+
+                    case pg.K_b:
+                        try:
+                            self.place_test_buy_wager()
+                        except GameRuleViolation as exc:
+                            print(f"Cannot place Buy bet: {exc}")
+
+                    case pg.K_UP | pg.K_DOWN:
+                        wager = self.engine.get_wager(
+                            self.player,
+                            WagerType.PLACE_BET,
+                            target=6,
                         )
-                    ),
-                    None,
-                )
 
-                if wager is not None:
-                    amount = (
-                        40 if event.key == pg.K_RIGHT else -40
-                    )
+                        if wager is not None:
+                            amount = (
+                                30
+                                if event.key == pg.K_UP
+                                else -30
+                            )
 
-                    if wager.value + amount > 0:
-                        try:
-                            self.adjust_test_wager(wager, amount)
-                        except GameRuleViolation as exc:
-                            print(f"Cannot adjust Lay bet: {exc}")
+                            if wager.value + amount > 0:
+                                try:
+                                    self.adjust_test_wager(wager, amount)
+                                except GameRuleViolation as exc:
+                                    print(f"Cannot adjust wager: {exc}")
 
-            
+                    case pg.K_RIGHT | pg.K_LEFT:
+                        wager = self.engine.get_wager(
+                            self.player,
+                            WagerType.LAY_BET,
+                            target=4,
+                        )
 
+                        if wager is not None:
+                            amount = (
+                                40
+                                if event.key == pg.K_RIGHT
+                                else -40
+                            )
 
-                    elif event.type == pg.MOUSEBUTTONDOWN:
-                        if event.button == 1:
-                            if self.dice_sprite.rect.collidepoint(event.pos):
-                                self.roll()
+                            if wager.value + amount > 0:
+                                try:
+                                    self.adjust_test_wager(wager, amount)
+                                except GameRuleViolation as exc:
+                                    print(f"Cannot adjust Lay bet: {exc}")
 
 
     def roll(self) -> None:
@@ -504,10 +464,7 @@ class PlayingState(BaseState):
             if sprite.is_animating
         ]
 
-        for wager, sprite in list(self.placing_vig_chips.items()):
-            if not sprite.is_animating:
-                sprite.kill()
-                del self.placing_vig_chips[wager]
+        self.wager_animator.update_placement()
 
         self.update_wager_adjustments()
 

@@ -27,6 +27,9 @@ class WagerAnimationController:
         self.renewal_vig_chips: list[ChipSprite] = []
         self.renewing_vig: set[Wager] = set()
 
+        self.placing_wagers: list[WagerSprite] = []
+        self.placing_vig_chips: dict[Wager, ChipSprite] = {}
+
         self.payout_stage = "idle"
 
 
@@ -152,7 +155,60 @@ class WagerAnimationController:
                 self.payout_sprites.remove(payout)
 
         self.renewal_payouts.clear()
-    
+
+
+    def place(
+        self,
+        wager: Wager,
+        destination: tuple[float, float],
+    ) -> None:
+        state = self.state
+        player_position = state.player_sprite.rect.center
+
+        sprite = WagerSprite(
+            wager,
+            player_position,
+            state.visible_sprites,
+        )
+
+        state.wager_sprites[wager] = sprite
+
+        sprite.move_to(destination, duration=0.4)
+        self.placing_wagers.append(sprite)
+
+        vig = wager.collected_vig
+
+        if vig > 0:
+            vig_chip = ChipSprite(
+                vig,
+                player_position,
+                state.visible_sprites,
+                radius=14,
+                color=(180, 130, 45),
+            )
+
+            vig_chip.move_to(
+                state.dealer_position,
+                duration=0.4,
+            )
+
+            self.placing_vig_chips[wager] = vig_chip
+
+        state.player_sprite.sync_bankroll()
+
+
+    def update_placement(self) -> None:
+        self.placing_wagers = [
+            sprite
+            for sprite in self.placing_wagers
+            if sprite.is_animating
+        ]
+
+        for wager, sprite in list(self.placing_vig_chips.items()):
+            if not sprite.is_animating:
+                sprite.kill()
+                del self.placing_vig_chips[wager]
+        
 
     def update(self) -> bool:
         state = self.state
