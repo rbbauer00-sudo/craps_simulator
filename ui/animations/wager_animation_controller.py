@@ -35,6 +35,8 @@ class WagerAnimationController:
         self.adjusting_vig: set[Wager] = set()
         self.adjustment_refund_pending = False
 
+        self.pending_losses: list[WagerSprite] = []
+
         self.renewal_payouts: list[
             tuple[ChipSprite, int, Wager]
         ] = []
@@ -101,11 +103,7 @@ class WagerAnimationController:
 
             match result.resolution:
                 case Resolution.LOSE:
-                    sprite.move_to(
-                        state.dealer_position,
-                        duration=self.travel_duration(),
-                    )
-                    self.resolving_sprites.append(sprite)
+                    self.pending_losses.append(sprite)
 
                 case Resolution.WIN:
                     wager = result.wager
@@ -167,6 +165,23 @@ class WagerAnimationController:
                     raise ValueError(
                         f"Unhandled resolution: {result.resolution}"
                     )
+
+            if self.pending_losses:
+                self.payout_stage = "collecting_losses"
+                self.start_next_loss()
+
+    def start_next_loss(self) -> None:
+        if not self.pending_losses:
+            return
+
+        sprite = self.pending_losses.pop(0)
+
+        sprite.move_to(
+            self.state.dealer_position,
+            duration=self.travel_duration(),
+        )
+
+        self.resolving_sprites.append(sprite)
 
 
     def start_simultaneous(self) -> None:
@@ -809,6 +824,31 @@ class WagerAnimationController:
                 self.payout_stage = "idle"
                 return True
 
+            case "collecting_losses":
+                # Only the most recently started loss
+                # needs to finish before another begins.
+                sprite = self.resolving_sprites[-1]
+
+                if sprite.is_animating:
+                    return False
+
+                # Remove the completed losing wager.
+                sprite.kill()
+                state.wager_sprites.pop(sprite.wager, None)
+
+                if getattr(state, "test_wager", None) is sprite.wager:
+                    del state.test_wager
+
+                self.resolving_sprites.pop()
+
+                if self.pending_losses:
+                    self.start_next_loss()
+                    return False
+
+                # All losses collected. Continue with
+                # the existing FULL payout sequence.
+                self.payout_stage = "arriving"
+                return False
 
             case "arriving":
                 moving = [
@@ -907,6 +947,7 @@ class WagerAnimationController:
         self.renewal_payouts.clear()
         self.renewal_vig_chips.clear()
         self.renewing_vig.clear()
+        self.pending_losses.clear()
     
     
     def update(self) -> bool:

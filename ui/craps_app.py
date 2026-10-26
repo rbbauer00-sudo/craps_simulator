@@ -49,3 +49,16 @@ class CrapsApp:
         finally:
             pg.quit()
 
+    def set_animation_settings(
+        self,
+        settings: AnimationSettings,
+    ) -> None:
+        state = self.states.current
+
+        if state.is_animating:
+            raise RuntimeError(
+                "Cannot change animation settings during an animation."
+            )
+
+        self.animation_settings = settings
+        state.wager_animator.settings = settings

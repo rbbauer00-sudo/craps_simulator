@@ -87,8 +87,13 @@ class PlayingState(BaseState):
         self.vig_sprites: dict[Wager, VigSprite] = {}
         self.wager_sprites: dict[Wager, WagerSprite] = {}
 
-
         # Game elements
+        self.betting_areas = {
+            WagerType.PASS_LINE: pg.FRect(390, 505, 120, 70),
+            WagerType.DONT_PASS: pg.FRect(540, 505, 120, 70),
+            WagerType.COME: pg.FRect(225, 215, 130, 70),
+        }
+
         self.dice_sprite = DiceSprite(
             size= 50,
             topleft=(150,500),
@@ -118,12 +123,10 @@ class PlayingState(BaseState):
         self.current_roll: GameRollResult | None = None
         self.roll_phase = RollPhase.READY
 
-
         self.dealer_position = (
             self.app.screen.get_width() / 2,
             -50,
         )
-
 
         self.wager_animator = WagerAnimationController(
             state=self,
@@ -256,11 +259,12 @@ class PlayingState(BaseState):
         match event.type:
 
             case pg.MOUSEBUTTONDOWN:
-                if (
-                    event.button == 1
-                    and self.dice_sprite.rect.collidepoint(event.pos)
-                ):
-                    self.roll()
+                if event.button == 1:
+                    if self.dice_sprite.rect.collidepoint(event.pos):
+                        self.roll()
+                    else:
+                        self.handle_table_click(event.pos)
+            
             
             case pg.KEYDOWN:
                 match event.key:
@@ -374,6 +378,30 @@ class PlayingState(BaseState):
                                     print(f"Cannot adjust Lay bet: {exc}")
 
 
+    def handle_table_click(
+        self,
+        position: tuple[int, int],
+    ) -> None:
+        for wager_type, rect in self.betting_areas.items():
+            if not rect.collidepoint(position):
+                continue
+
+            try:
+                match wager_type:
+                    case WagerType.PASS_LINE:
+                        self.place_pass_line()
+
+                    case WagerType.DONT_PASS:
+                        self.place_test_dp_wager()
+
+                    case WagerType.COME:
+                        self.place_test_come_wager()
+
+            except GameRuleViolation as exc:
+                print(f"Cannot place wager: {exc}")
+
+            return
+        
 
     def roll(self) -> None:
         if self.is_animating:
@@ -454,11 +482,32 @@ class PlayingState(BaseState):
         pg.draw.rect(screen, (55, 55, 55), (980, 20, 280, 580))
         pg.draw.rect(screen, (55, 55, 55), (20, 620, 1240, 160))
 
+
+        # Draw Betting Areas
+        for wager_type, rect in self.betting_areas.items():
+            pg.draw.rect(
+                screen,
+                (190, 190, 190),
+                rect,
+                width=2,
+                border_radius=6,
+            )
+
+            label = self.app.font.render(
+                wager_type.name.replace("_", " "),
+                True,
+                (230, 230, 230),
+            )
+
+            screen.blit(
+                label,
+                label.get_frect(center=rect.center),
+            )
+
         self.visible_sprites.draw(screen)
 
         for sprite in self.vig_sprites.values():
             screen.blit(sprite.image, sprite.rect)
-
 
 
 #=====================
