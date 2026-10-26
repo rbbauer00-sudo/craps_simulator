@@ -398,7 +398,7 @@ class PlayingState(BaseState):
 
         self.wager_animator.update_placement()
 
-        self.wager_animator.update_wager_adjustments()
+        self.wager_animator.update_adjustment()
 
         self.wager_animator.update_removal()
         self.sync_vig_sprites()
