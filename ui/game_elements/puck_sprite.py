@@ -109,6 +109,7 @@ class PuckSprite(pg.sprite.Sprite):
             return
 
         self.target_point = point_after
+        self.render_image()
 
         self.start_position = Vector(self.rect.center)
         self.target_position = Vector(
@@ -141,6 +142,4 @@ class PuckSprite(pg.sprite.Sprite):
         )
 
         if progress >= 1.0:
-            self.point = self.target_point
             self.is_animating = False
-            self.render_image()
