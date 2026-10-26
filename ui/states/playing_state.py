@@ -234,7 +234,7 @@ class PlayingState(BaseState):
                     if wager not in active_wagers:
                         self.returning_wagers.append(sprite)
 
-                    renewal_vig = self.renewed_vig_for(wager)
+                    renewal_vig = self.winning_vig_for(wager)
                     gross_profit = result.profit + renewal_vig
 
                     if renewal_vig > 0:
@@ -493,24 +493,21 @@ class PlayingState(BaseState):
         self.roll_phase = RollPhase.READY
 
         
-    def renewed_vig_for(self, wager: Wager) -> int:
-        # Only continuing wagers need a renewed commission.
+    def winning_vig_for(self, wager: Wager) -> int:
         if wager not in self.engine.wagers:
             return 0
 
-        if wager.definition.wager_type is WagerType.LAY_BET:
-            return wager.collected_vig
+        wager_type = wager.definition.wager_type
 
-        if (
-            wager.definition.wager_type is WagerType.PLACE_BET
-            and wager.is_buy
-            and self.engine.settings.buy_vig_setting
-            is VigSetting.UP_FRONT
-        ):
-            return wager.collected_vig
+        match wager_type:
+            case WagerType.LAY_BET:
+                return wager.collected_vig
 
-        return 0
+            case WagerType.PLACE_BET if wager.is_buy:
+                return self.engine.calculate_vig(wager)
 
+            case _:
+                return 0
 
 
     def handle_event(self, event: pg.event.Event) -> None:
@@ -582,6 +579,12 @@ class PlayingState(BaseState):
                     self.take_down_test_lay_wager()
                 except GameRuleViolation as exc:
                     print(f"Cannot remove Lay wager: {exc}")
+
+            elif event.key == pg.K_b:
+                try:
+                    self.place_test_buy_wager()
+                except GameRuleViolation as exc:
+                    print(f"Cannot place Buy bet: {exc}")
 
 
         elif event.type == pg.MOUSEBUTTONDOWN:
@@ -916,3 +919,22 @@ class PlayingState(BaseState):
             )
 
             self.refunding_vig_chips.append(refund)
+
+
+    def place_test_buy_wager(self) -> None:
+        wager = Wager(
+            definition=defs.PLACE_BET,
+            player=self.player,
+            game=self.engine,
+            value=20,
+            target=4,
+        )
+
+        wager.is_buy = True
+
+        self.engine.place_wager(wager)
+
+        self.animate_wager_placement(
+            wager,
+            (170, 250),
+        )
