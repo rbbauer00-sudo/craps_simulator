@@ -82,8 +82,7 @@ class PlayingState(BaseState):
 
         self.visible_sprites = pg.sprite.Group()
         self.clickable_sprites = pg.sprite.Group()
-        self.removing_wagers: list[WagerSprite] = []
-        self.refunding_vig_chips: list[ChipSprite] = []
+
         self.vig_sprites: dict[Wager, VigSprite] = {}
         self.wager_sprites: dict[Wager, WagerSprite] = {}
         self.adjustment_chips: list[ChipSprite] = []
@@ -137,8 +136,8 @@ class PlayingState(BaseState):
             self.roll_phase is not RollPhase.READY
             or bool(self.wager_animator.placing_wagers)
             or bool(self.wager_animator.placing_vig_chips)
-            or bool(self.removing_wagers)
-            or bool(self.refunding_vig_chips)
+            or bool(self.wager_animator.removing_wagers)
+            or bool(self.wager_animator.refunding_vig_chips)
             or bool(self.adjustment_chips)
         )
 
@@ -158,36 +157,6 @@ class PlayingState(BaseState):
     def start_wager_animation(self) -> None:
         self.roll_phase = RollPhase.WAGERS_RESOLVING
         self.wager_animator.start()
-
-
-    def update_wager_removal(self) -> None:
-        moving = [
-            *self.removing_wagers,
-            *self.refunding_vig_chips,
-        ]
-
-        if not moving:
-            return
-
-        if any(sprite.is_animating for sprite in moving):
-            return
-
-        # Wager principal has reached the player.
-        for sprite in self.removing_wagers:
-            sprite.kill()
-            self.wager_sprites.pop(sprite.wager, None)
-
-        self.removing_wagers.clear()
-
-        # Refund commission has reached the player.
-        for sprite in self.refunding_vig_chips:
-            sprite.kill()
-
-        self.refunding_vig_chips.clear()
-
-        # Reveal the total refund only after arrival.
-        self.player_sprite.sync_bankroll()
-        self.player_sprite.auto_sync = True
 
 
     def update_wager_adjustments(self) -> None:
@@ -462,7 +431,7 @@ class PlayingState(BaseState):
 
         self.update_wager_adjustments()
 
-        self.update_wager_removal()
+        self.wager_animator.update_wager_removal()
         self.sync_vig_sprites()
 
         match self.roll_phase:
@@ -687,61 +656,30 @@ class PlayingState(BaseState):
         return None
 
 
+    
     def take_down_test_lay_wager(self) -> None:
-        wager = next(
-            (
-                wager
-                for wager in self.engine.wagers
-                if (
-                    wager.player is self.player
-                    and wager.definition.wager_type
-                    is WagerType.LAY_BET
-                )
-            ),
-            None,
+        wager = self.engine.get_wager(
+            self.player,
+            WagerType.LAY_BET,
+            target=4,
         )
 
         if wager is None:
             print("No Lay wager to remove.")
             return
 
-        sprite = self.wager_sprites[wager]
+        # Preserve the refundable commission amount.
         vig_refund = wager.collected_vig
 
-        # The engine validates the removal and
-        # immediately refunds the actual bankroll.
+        # Engine handles rules and accounting.
         self.engine.take_down_wager(wager)
 
-        # Freeze the displayed bankroll at its
-        # pre-refund value.
-        self.player_sprite.auto_sync = False
-
-        player_position = self.player_sprite.rect.center
-
-        # Return the original wager.
-        sprite.move_to(
-            player_position,
-            duration=0.4,
+        # Controller handles the visual return.
+        self.wager_animator.remove(
+            wager,
+            vig_refund,
         )
 
-        self.removing_wagers.append(sprite)
-
-        # Return the refundable commission separately.
-        if vig_refund > 0:
-            refund = ChipSprite(
-                vig_refund,
-                self.dealer_position,
-                self.visible_sprites,
-                radius=14,
-                color=(180, 130, 45),
-            )
-
-            refund.move_to(
-                player_position,
-                duration=0.4,
-            )
-
-            self.refunding_vig_chips.append(refund)
 
 
     def place_test_buy_wager(self) -> None:

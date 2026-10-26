@@ -21,6 +21,9 @@ class WagerAnimationController:
         self.moving_wagers: list[WagerSprite] = []
         self.payout_sprites: list[ChipSprite] = []
 
+        self.removing_wagers: list[WagerSprite] = []
+        self.refunding_vig_chips: list[ChipSprite] = []
+
         self.renewal_payouts: list[
             tuple[ChipSprite, int, Wager]
         ] = []
@@ -195,6 +198,81 @@ class WagerAnimationController:
             self.placing_vig_chips[wager] = vig_chip
 
         state.player_sprite.sync_bankroll()
+
+
+
+    def remove(
+        self,
+        wager: Wager,
+        vig_refund: int,
+    ) -> None:
+        state = self.state
+
+        sprite = state.wager_sprites[wager]
+        player_position = state.player_sprite.rect.center
+
+        # The engine has already removed the wager
+        # and refunded the player's actual bankroll.
+        state.player_sprite.auto_sync = False
+
+        # Return wager principal to the player.
+        sprite.move_to(
+            player_position,
+            duration=0.4,
+        )
+
+        self.removing_wagers.append(sprite)
+
+        # Return any refundable commission.
+        if vig_refund > 0:
+            refund = ChipSprite(
+                vig_refund,
+                state.dealer_position,
+                state.visible_sprites,
+                radius=14,
+                color=(180, 130, 45),
+            )
+
+            refund.move_to(
+                player_position,
+                duration=0.4,
+            )
+
+            self.refunding_vig_chips.append(refund)
+
+
+
+    def update_removal(self) -> None:
+        state = self.state
+
+        moving = [
+            *self.removing_wagers,
+            *self.refunding_vig_chips,
+        ]
+
+        if not moving:
+            return
+
+        if any(sprite.is_animating for sprite in moving):
+            return
+
+        # Wager principal has reached the player.
+        for sprite in self.removing_wagers:
+            sprite.kill()
+            state.wager_sprites.pop(sprite.wager, None)
+
+        self.removing_wagers.clear()
+
+        # Refunded commission has reached the player.
+        for sprite in self.refunding_vig_chips:
+            sprite.kill()
+
+        self.refunding_vig_chips.clear()
+
+        # Reveal the full refund after arrival.
+        state.player_sprite.sync_bankroll()
+        state.player_sprite.auto_sync = True
+
 
 
     def update_placement(self) -> None:
