@@ -272,7 +272,7 @@ class PlayingState(BaseState):
             show_indicator = (
                 wager.collected_vig > 0
                 and not parent.is_animating
-                and wager not in self.wager_animatorplacing_vig_chips
+                and wager not in self.wager_animator.placing_vig_chips
                 and wager not in self.wager_animator.renewing_vig
                 and wager not in self.adjusting_vig
             )
@@ -457,12 +457,6 @@ class PlayingState(BaseState):
     def update(self, dt: float):
         self.visible_sprites.update(dt)
         self.dice_sprite.update(dt)
-
-        self.placing_wagers = [
-            sprite
-            for sprite in self.placing_wagers
-            if sprite.is_animating
-        ]
 
         self.wager_animator.update_placement()
 
