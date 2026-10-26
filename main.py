@@ -7,8 +7,8 @@ def main():
     )
 
     animation_settings = AnimationSettings(
-        mode=AnimationMode.SIMULTANEOUS,
-        speed=0.75,
+        mode=AnimationMode.MINIMAL,
+        speed=0.6,
     )
 
     app = CrapsApp(

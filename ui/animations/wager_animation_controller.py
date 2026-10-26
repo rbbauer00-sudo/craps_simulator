@@ -75,7 +75,10 @@ class WagerAnimationController:
             case AnimationMode.SIMULTANEOUS:
                 self.start_simultaneous()
 
-            case AnimationMode.MINIMAL | AnimationMode.INSTANT:
+            case AnimationMode.MINIMAL:
+                self.start_minimal()
+        
+            case AnimationMode.INSTANT:
                 raise NotImplementedError(
                     f"{self.settings.mode.name} mode "
                     "is not implemented yet."
@@ -285,7 +288,80 @@ class WagerAnimationController:
                         f"Unhandled resolution: {result.resolution}"
                     )
 
-   
+
+    def start_minimal(self) -> None:
+        state = self.state
+
+        if state.current_roll is None:
+            raise RuntimeError("No current roll to resolve.")
+
+        self.reset_resolution()
+        self.payout_stage = "minimal"
+
+        active_wagers = set(state.engine.wagers)
+        hold_duration = self.settings.duration(0.35)
+
+        for result in state.current_roll.wager_results:
+            sprite = state.wager_sprites.get(result.wager)
+
+            if sprite is None:
+                continue
+
+            wager = result.wager
+            x, y = sprite.rect.center
+
+            match result.resolution:
+
+                case Resolution.WIN:
+                    if wager not in active_wagers:
+                        self.returning_wagers.append(sprite)
+
+                    if result.profit > 0:
+                        indicator = ChipSprite(
+                            result.profit,
+                            (x + 55, y),
+                            state.visible_sprites,
+                            color=(35, 145, 75),
+                        )
+
+                        indicator.hold(hold_duration)
+                        self.payout_sprites.append(indicator)
+
+                case Resolution.LOSE:
+                    self.resolving_sprites.append(sprite)
+
+                    indicator = ChipSprite(
+                        wager.value,
+                        (x + 55, y),
+                        state.visible_sprites,
+                        color=(170, 55, 55),
+                    )
+
+                    indicator.hold(hold_duration)
+                    self.payout_sprites.append(indicator)
+
+                case Resolution.MOVE:
+                    target = result.move_to
+
+                    if target not in state.COME_POSITIONS:
+                        raise ValueError(
+                            f"No Come position defined for {target}"
+                        )
+
+                    sprite.rect.center = state.COME_POSITIONS[target]
+
+                case Resolution.REMOVE:
+                    self.returning_wagers.append(sprite)
+
+                case Resolution.PUSH | Resolution.NONE:
+                    pass
+
+                case _:
+                    raise ValueError(
+                        f"Unhandled resolution: {result.resolution}"
+                    )
+
+
     def split_renewal_payouts(self) -> None:
         state = self.state
 
@@ -563,6 +639,39 @@ class WagerAnimationController:
         state = self.state
 
         match self.payout_stage:
+
+            case "minimal":
+                if any(
+                    sprite.is_animating
+                    for sprite in self.payout_sprites
+                ):
+                    return False
+
+                # Remove temporary win/loss indicators.
+                for sprite in self.payout_sprites:
+                    sprite.kill()
+
+                # Remove lost wagers.
+                for sprite in self.resolving_sprites:
+                    sprite.kill()
+                    state.wager_sprites.pop(sprite.wager, None)
+
+                    if getattr(state, "test_wager", None) is sprite.wager:
+                        del state.test_wager
+
+                # Remove principal that the engine returned.
+                for sprite in self.returning_wagers:
+                    sprite.kill()
+                    state.wager_sprites.pop(sprite.wager, None)
+
+                self.reset_resolution()
+
+                state.player_sprite.sync_bankroll()
+                state.player_sprite.auto_sync = True
+                state.sync_wager_sprites()
+
+                self.payout_stage = "idle"
+                return True
 
             case "simultaneous":
                 moving = [
