@@ -92,6 +92,9 @@ class PlayingState(BaseState):
         self.renewal_payouts: list[tuple[ChipSprite, int, Wager]] = []
         self.renewal_vig_chips: list[ChipSprite] = []
         self.renewing_vig: set[Wager] = set()
+        self.adjustment_chips: list[ChipSprite] = []
+        self.adjusting_vig: set[Wager] = set()
+        self.adjustment_refund_pending = False
 
 
         # Game elements
@@ -145,6 +148,7 @@ class PlayingState(BaseState):
             or bool(self.placing_vig_chips)
             or bool(self.removing_wagers)
             or bool(self.refunding_vig_chips)
+            or bool(self.adjustment_chips)
         )
 
     @property
@@ -406,6 +410,35 @@ class PlayingState(BaseState):
         self.player_sprite.sync_bankroll()
         self.player_sprite.auto_sync = True
 
+
+    def update_wager_adjustments(self) -> None:
+        if not self.adjustment_chips:
+            return
+
+        if any(
+            sprite.is_animating
+            for sprite in self.adjustment_chips
+        ):
+            return
+
+        for sprite in self.adjustment_chips:
+            sprite.kill()
+
+        self.adjustment_chips.clear()
+
+        if self.adjustment_refund_pending:
+            self.player_sprite.sync_bankroll()
+            self.player_sprite.auto_sync = True
+            self.adjustment_refund_pending = False
+
+        for sprite in self.wager_sprites.values():
+            if not sprite.auto_sync_value:
+                sprite.sync_value()
+                sprite.auto_sync_value = True
+
+        self.adjusting_vig.clear()
+
+
     
     def split_renewal_payouts(self) -> None:
         for payout, net_profit, wager in self.renewal_payouts:
@@ -446,6 +479,7 @@ class PlayingState(BaseState):
                 and not parent.is_animating
                 and wager not in self.placing_vig_chips
                 and wager not in self.renewing_vig
+                and wager not in self.adjusting_vig
             )
 
             if show_indicator:
@@ -586,11 +620,59 @@ class PlayingState(BaseState):
                 except GameRuleViolation as exc:
                     print(f"Cannot place Buy bet: {exc}")
 
+         
+            elif event.key in (pg.K_UP, pg.K_DOWN):
+                wager = self.engine.get_wager(
+                    self.player,
+                    WagerType.PLACE_BET,
+                    target=6,
+                )
 
-        elif event.type == pg.MOUSEBUTTONDOWN:
-            if event.button == 1:
-                if self.dice_sprite.rect.collidepoint(event.pos):
-                    self.roll()
+                if wager is not None:
+                    amount = (
+                        30
+                        if event.key == pg.K_UP
+                        else -30
+                    )
+
+                    if wager.value + amount > 0:
+                        try:
+                            self.adjust_test_wager(wager, amount)
+                        except GameRuleViolation as exc:
+                            print(f"Cannot adjust wager: {exc}")
+            
+            elif event.key in (pg.K_RIGHT, pg.K_LEFT):
+                wager = next(
+                    (
+                        w for w in self.engine.wagers
+                        if (
+                            w.player is self.player
+                            and w.definition.wager_type
+                            is WagerType.LAY_BET
+                            and w.target == 4
+                        )
+                    ),
+                    None,
+                )
+
+                if wager is not None:
+                    amount = (
+                        40 if event.key == pg.K_RIGHT else -40
+                    )
+
+                    if wager.value + amount > 0:
+                        try:
+                            self.adjust_test_wager(wager, amount)
+                        except GameRuleViolation as exc:
+                            print(f"Cannot adjust Lay bet: {exc}")
+
+            
+
+
+                    elif event.type == pg.MOUSEBUTTONDOWN:
+                        if event.button == 1:
+                            if self.dice_sprite.rect.collidepoint(event.pos):
+                                self.roll()
 
 
     def roll(self) -> None:
@@ -625,6 +707,8 @@ class PlayingState(BaseState):
             if not sprite.is_animating:
                 sprite.kill()
                 del self.placing_vig_chips[wager]
+
+        self.update_wager_adjustments()
 
         self.update_wager_removal()
         self.sync_vig_sprites()
@@ -938,3 +1022,112 @@ class PlayingState(BaseState):
             wager,
             (170, 250),
         )
+
+
+
+    
+    def adjust_test_wager(
+        self,
+        wager: Wager,
+        amount: int,
+    ) -> None:
+        if amount == 0:
+            return
+
+        sprite = self.wager_sprites[wager]
+
+        player_position = self.player_sprite.rect.center
+        wager_position = sprite.rect.center
+
+        old_vig = wager.collected_vig
+
+        # Prevent the wager value from changing early.
+        sprite.auto_sync_value = False
+
+        try:
+            if amount > 0:
+                self.engine.increase_wager(wager, amount)
+            else:
+                self.engine.decrease_wager(wager, -amount)
+        except Exception:
+            sprite.auto_sync_value = True
+            raise
+
+        vig_change = wager.collected_vig - old_vig
+
+        if vig_change != 0:
+            self.adjusting_vig.add(wager)
+
+        if amount > 0:
+            chip = ChipSprite(
+                amount,
+                player_position,
+                self.visible_sprites,
+            )
+
+            chip.move_to(
+                wager_position,
+                duration=0.4,
+            )
+
+            # Reveal the deduction at departure.
+            self.player_sprite.sync_bankroll()
+
+        else:
+            chip = ChipSprite(
+                -amount,
+                wager_position,
+                self.visible_sprites,
+            )
+
+            chip.move_to(
+                player_position,
+                duration=0.4,
+            )
+
+            # Wager value decreases at departure.
+            sprite.sync_value()
+
+            # Reveal the refund only after arrival.
+            self.player_sprite.auto_sync = False
+            self.adjustment_refund_pending = True
+
+        self.adjustment_chips.append(chip)
+
+        # Additional commission collected.
+        if vig_change > 0:
+            vig_chip = ChipSprite(
+                vig_change,
+                player_position,
+                self.visible_sprites,
+                radius=14,
+                color=(180, 130, 45),
+            )
+
+            vig_chip.move_to(
+                self.dealer_position,
+                duration=0.4,
+            )
+
+            self.adjustment_chips.append(vig_chip)
+
+        # Commission refunded.
+        elif vig_change < 0:
+            vig_chip = ChipSprite(
+                -vig_change,
+                self.dealer_position,
+                self.visible_sprites,
+                radius=14,
+                color=(180, 130, 45),
+            )
+
+            vig_chip.move_to(
+                player_position,
+                duration=0.4,
+            )
+
+            self.adjustment_chips.append(vig_chip)
+
+
+
+
