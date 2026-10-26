@@ -109,6 +109,11 @@ class PlayingState(BaseState):
             100: pg.FRect(780, 680, 85, 55),
         }
 
+        self.tool_buttons = {
+            CursorTool.ON: pg.FRect(900, 680, 70, 55),
+            CursorTool.OFF: pg.FRect(980, 680, 70, 55),   
+        }
+
         # Game elements
         self.betting_areas = {
             WagerType.PASS_LINE: pg.FRect(390, 505, 120, 70),
@@ -284,13 +289,15 @@ class PlayingState(BaseState):
 
         match event.type:
 
-
             case pg.MOUSEBUTTONDOWN:
                 if event.button not in (1, 3):
                     return
 
                 if event.button == 1:
                     if self.handle_chip_click(event.pos):
+                        return
+
+                    if self.handle_tool_click(event.pos):
                         return
 
                     if self.dice_sprite.rect.collidepoint(event.pos):
@@ -300,24 +307,22 @@ class PlayingState(BaseState):
                 wager = self.wager_at_position(event.pos)
 
                 if wager is not None:
-                    amount = (
-                        self.selected_chip
-                        if event.button == 1
-                        else -self.selected_chip
-                    )
-
                     try:
-                        self.change_wager(
-                            amount,
-                            wager=wager,
+                        self.apply_wager_tool(
+                            wager,
+                            event.button,
                         )
                     except (GameRuleViolation, InsufficientFundsError) as exc:
-                        print(f"Cannot change wager: {exc}")
+                        print(f"Cannot modify wager: {exc}")
 
                     return
 
-                if event.button == 1:
+                if (
+                    event.button == 1
+                    and self.selected_tool is CursorTool.CHIP
+                ):
                     self.handle_table_click(event.pos)
+
 
                         
             case pg.KEYDOWN:
@@ -334,105 +339,6 @@ class PlayingState(BaseState):
 
                     case pg.K_RETURN:
                         self.roll()
-
-                '''
-                    case pg.K_p:
-                        self.place_pass_line()
-
-                    case pg.K_t:
-                        if not hasattr(self, "test_wager"):
-                            self.place_test_wager()
-
-                    case pg.K_o:
-                        wager = self.find_test_odds_wager()
-
-                        if wager is not None:
-                            wager.is_working = not wager.is_working
-                        else:
-                            print("No active odds wager to toggle.")
-
-                    case pg.K_c:
-                        try:
-                            self.place_test_come_wager()
-                        except GameRuleViolation:
-                            print("Come bet not allowed.")
-
-                    case pg.K_y:
-                        try:
-                            self.place_test_lay_wager()
-                        except GameRuleViolation as exc:
-                            print(f"Cannot place Lay bet: {exc}")
-
-                    case pg.K_d:
-                        try:
-                            self.place_test_dp_wager()
-                        except GameRuleViolation as exc:
-                            print(f"Cannot place Don't Pass: {exc}")
-
-                    case pg.K_l:
-                        parent = self.find_test_odds_parent()
-
-                        if parent is not None:
-                            try:
-                                self.place_test_odds_wager(parent)
-                            except GameRuleViolation as exc:
-                                print(f"Cannot place odds: {exc}")
-                        else:
-                            print("No eligible wager for odds.")
-
-                    case pg.K_x:
-                        try:
-                            self.take_down_test_lay_wager()
-                        except GameRuleViolation as exc:
-                            print(f"Cannot remove Lay wager: {exc}")
-
-                    case pg.K_b:
-                        try:
-                            self.place_test_buy_wager()
-                        except GameRuleViolation as exc:
-                            print(f"Cannot place Buy bet: {exc}")
-
-                    case pg.K_UP | pg.K_DOWN:
-                        wager = self.engine.get_wager(
-                            self.player,
-                            WagerType.PLACE_BET,
-                            target=6,
-                        )
-
-                        if wager is not None:
-                            amount = (
-                                30
-                                if event.key == pg.K_UP
-                                else -30
-                            )
-
-                            if wager.value + amount > 0:
-                                try:
-                                    self.adjust_test_wager(wager, amount)
-                                except GameRuleViolation as exc:
-                                    print(f"Cannot adjust wager: {exc}")
-
-                    case pg.K_RIGHT | pg.K_LEFT:
-                        wager = self.engine.get_wager(
-                            self.player,
-                            WagerType.LAY_BET,
-                            target=4,
-                        )
-
-                        if wager is not None:
-                            amount = (
-                                40
-                                if event.key == pg.K_RIGHT
-                                else -40
-                            )
-
-                            if wager.value + amount > 0:
-                                try:
-                                    self.adjust_test_wager(wager, amount)
-                                except GameRuleViolation as exc:
-                                    print(f"Cannot adjust Lay bet: {exc}")
-                    '''
-
 
 
     def handle_table_click(
@@ -507,6 +413,35 @@ class PlayingState(BaseState):
 
         return True
 
+
+    def apply_wager_tool(
+        self,
+        wager: Wager,
+        button: int,
+    ) -> None:
+        match self.selected_tool:
+
+            case CursorTool.CHIP:
+                amount = (
+                    self.selected_chip
+                    if button == 1
+                    else -self.selected_chip
+                )
+                self.change_wager(amount, wager=wager)
+
+            case CursorTool.ON:
+                self.engine.set_wager_working_status(
+                    wager, True
+                )
+
+            case CursorTool.OFF:
+                self.engine.set_wager_working_status(
+                    wager, False
+                )
+
+            case CursorTool.BUY | CursorTool.PLACE:
+                # We'll implement these next.
+                pass
 
 
     def wager_at_position(
@@ -683,6 +618,37 @@ class PlayingState(BaseState):
 
             text = self.app.font.render(
                 f"${value}",
+                True,
+                (255, 255, 255),
+            )
+
+            screen.blit(
+                text,
+                text.get_frect(center=rect.center),
+            )
+
+
+        # Draw selector buttons
+        for tool, rect in self.tool_buttons.items():
+            selected = tool is self.selected_tool
+
+            pg.draw.rect(
+                screen,
+                (35, 105, 185) if selected else (70, 70, 70),
+                rect,
+                border_radius=8,
+            )
+
+            pg.draw.rect(
+                screen,
+                (245, 245, 245) if selected else (150, 150, 150),
+                rect,
+                width=3 if selected else 1,
+                border_radius=8,
+            )
+
+            text = self.app.font.render(
+                tool.name,
                 True,
                 (255, 255, 255),
             )
