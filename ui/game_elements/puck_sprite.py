@@ -21,7 +21,6 @@ class PuckSprite(pg.sprite.Sprite):
         super().__init__(*groups)
 
         self.point = point
-        self.target_point: int | None = point
         self.radius = 24
 
         diameter = self.radius * 2
@@ -108,7 +107,7 @@ class PuckSprite(pg.sprite.Sprite):
         if point_before == point_after:
             return
 
-        self.target_point = point_after
+        self.point = point_after
         self.render_image()
 
         self.start_position = Vector(self.rect.center)
