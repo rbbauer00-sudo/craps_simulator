@@ -24,6 +24,10 @@ class WagerAnimationController:
         self.removing_wagers: list[WagerSprite] = []
         self.refunding_vig_chips: list[ChipSprite] = []
 
+        self.adjustment_chips: list[ChipSprite] = []
+        self.adjusting_vig: set[Wager] = set()
+        self.adjustment_refund_pending = False
+
         self.renewal_payouts: list[
             tuple[ChipSprite, int, Wager]
         ] = []
@@ -200,6 +204,92 @@ class WagerAnimationController:
         state.player_sprite.sync_bankroll()
 
 
+    def adjust(
+        self,
+        wager: Wager,
+        amount: int,
+        vig_change: int,
+    ) -> None:
+        state = self.state
+
+        sprite = state.wager_sprites[wager]
+        player_position = state.player_sprite.rect.center
+        wager_position = sprite.rect.center
+
+        if vig_change != 0:
+            self.adjusting_vig.add(wager)
+
+        if amount > 0:
+            chip = ChipSprite(
+                amount,
+                player_position,
+                state.visible_sprites,
+            )
+
+            chip.move_to(
+                wager_position,
+                duration=0.4,
+            )
+
+            # The engine already deducted the funds.
+            # Reveal the deduction immediately.
+            state.player_sprite.sync_bankroll()
+
+        else:
+            chip = ChipSprite(
+                -amount,
+                wager_position,
+                state.visible_sprites,
+            )
+
+            chip.move_to(
+                player_position,
+                duration=0.4,
+            )
+
+            # Show the smaller wager immediately.
+            sprite.sync_value()
+
+            # Delay the bankroll refund until arrival.
+            state.player_sprite.auto_sync = False
+            self.adjustment_refund_pending = True
+
+        self.adjustment_chips.append(chip)
+
+        # Additional upfront commission.
+        if vig_change > 0:
+            vig_chip = ChipSprite(
+                vig_change,
+                player_position,
+                state.visible_sprites,
+                radius=14,
+                color=(180, 130, 45),
+            )
+
+            vig_chip.move_to(
+                state.dealer_position,
+                duration=0.4,
+            )
+
+            self.adjustment_chips.append(vig_chip)
+
+        # Refunded upfront commission.
+        elif vig_change < 0:
+            vig_chip = ChipSprite(
+                -vig_change,
+                state.dealer_position,
+                state.visible_sprites,
+                radius=14,
+                color=(180, 130, 45),
+            )
+
+            vig_chip.move_to(
+                player_position,
+                duration=0.4,
+            )
+
+            self.adjustment_chips.append(vig_chip)
+
 
     def remove(
         self,
@@ -241,7 +331,6 @@ class WagerAnimationController:
             self.refunding_vig_chips.append(refund)
 
 
-
     def update_removal(self) -> None:
         state = self.state
 
@@ -274,7 +363,6 @@ class WagerAnimationController:
         state.player_sprite.auto_sync = True
 
 
-
     def update_placement(self) -> None:
         self.placing_wagers = [
             sprite
@@ -286,7 +374,37 @@ class WagerAnimationController:
             if not sprite.is_animating:
                 sprite.kill()
                 del self.placing_vig_chips[wager]
-        
+
+     
+    def update_adjustment(self) -> None:
+        state = self.state
+
+        if not self.adjustment_chips:
+            return
+
+        if any(
+            sprite.is_animating
+            for sprite in self.adjustment_chips
+        ):
+            return
+
+        for sprite in self.adjustment_chips:
+            sprite.kill()
+
+        self.adjustment_chips.clear()
+
+        if self.adjustment_refund_pending:
+            state.player_sprite.sync_bankroll()
+            state.player_sprite.auto_sync = True
+            self.adjustment_refund_pending = False
+
+        for sprite in state.wager_sprites.values():
+            if not sprite.auto_sync_value:
+                sprite.sync_value()
+                sprite.auto_sync_value = True
+
+        self.adjusting_vig.clear()
+   
 
     def update(self) -> bool:
         state = self.state
