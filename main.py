@@ -1,11 +1,20 @@
-from ui import CrapsApp
+from ui import CrapsApp, AnimationSettings
 from engine import GameSettings, VigSetting
 
 def main():
-    settings = GameSettings(
+    game_settings = GameSettings(
         buy_vig_setting=VigSetting.AUTO_BUY
     )
-    app = CrapsApp(settings=settings)
+
+    animation_settings = AnimationSettings(
+        speed_multiplier=5.0,
+    )
+
+    app = CrapsApp(
+        game_settings=game_settings,
+        animation_settings=animation_settings,
+    )
+
     app.run()
 
 if __name__ == "__main__":

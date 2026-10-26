@@ -4,6 +4,7 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 from engine import Resolution, Wager
+from .animation_settings import AnimationSettings
 from ui.game_elements import ChipSprite, WagerSprite
 
 if TYPE_CHECKING:
@@ -13,8 +14,14 @@ if TYPE_CHECKING:
 class WagerAnimationController:
     
 
-    def __init__(self, state: PlayingState) -> None:
+    def __init__(
+        self, 
+        state: PlayingState,
+        settings: AnimationSettings,
+    ) -> None:
+        
         self.state = state
+        self.settings = settings
 
         self.resolving_sprites: list[WagerSprite] = []
         self.returning_wagers: list[WagerSprite] = []
@@ -52,6 +59,13 @@ class WagerAnimationController:
         )
 
 
+    def travel_duration(self) -> float:
+        return self.settings.duration(0.4)
+
+
+    def payout_hold(self) -> float:
+        return self.settings.duration(0.35)
+
 
     def start(self) -> None:
         state = self.state
@@ -80,7 +94,7 @@ class WagerAnimationController:
                 case Resolution.LOSE:
                     sprite.move_to(
                         state.dealer_position,
-                        duration=0.4,
+                        duration=self.travel_duration(),
                     )
                     self.resolving_sprites.append(sprite)
 
@@ -109,8 +123,8 @@ class WagerAnimationController:
 
                     payout.move_to(
                         (x + 55, y),
-                        duration=0.4,
-                        hold=0.35,
+                        duration=self.travel_duration(),
+                        hold=self.payout_hold(),
                     )
 
                     self.payout_sprites.append(payout)
@@ -130,7 +144,7 @@ class WagerAnimationController:
 
                     sprite.move_to(
                         state.COME_POSITIONS[target],
-                        duration=0.4,
+                        duration=self.travel_duration(),
                     )
                     self.moving_wagers.append(sprite)
 
@@ -165,7 +179,7 @@ class WagerAnimationController:
 
             commission.move_to(
                 state.dealer_position,
-                duration=0.4,
+                duration=self.travel_duration(),
             )
 
             self.renewal_vig_chips.append(commission)
@@ -193,7 +207,7 @@ class WagerAnimationController:
 
         state.wager_sprites[wager] = sprite
 
-        sprite.move_to(destination, duration=0.4)
+        sprite.move_to(destination, duration=self.travel_duration())
         self.placing_wagers.append(sprite)
 
         vig = wager.collected_vig
@@ -209,7 +223,7 @@ class WagerAnimationController:
 
             vig_chip.move_to(
                 state.dealer_position,
-                duration=0.4,
+                duration=self.travel_duration(),
             )
 
             self.placing_vig_chips[wager] = vig_chip
@@ -241,7 +255,7 @@ class WagerAnimationController:
 
             chip.move_to(
                 wager_position,
-                duration=0.4,
+                duration=self.travel_duration(),
             )
 
             # The engine already deducted the funds.
@@ -257,7 +271,7 @@ class WagerAnimationController:
 
             chip.move_to(
                 player_position,
-                duration=0.4,
+                duration=self.travel_duration(),
             )
 
             # Show the smaller wager immediately.
@@ -281,7 +295,7 @@ class WagerAnimationController:
 
             vig_chip.move_to(
                 state.dealer_position,
-                duration=0.4,
+                duration=self.travel_duration(),
             )
 
             self.adjustment_chips.append(vig_chip)
@@ -298,7 +312,7 @@ class WagerAnimationController:
 
             vig_chip.move_to(
                 player_position,
-                duration=0.4,
+                duration=self.travel_duration(),
             )
 
             self.adjustment_chips.append(vig_chip)
@@ -321,7 +335,7 @@ class WagerAnimationController:
         # Return wager principal to the player.
         sprite.move_to(
             player_position,
-            duration=0.4,
+            duration=self.travel_duration(),
         )
 
         self.removing_wagers.append(sprite)
@@ -338,7 +352,7 @@ class WagerAnimationController:
 
             refund.move_to(
                 player_position,
-                duration=0.4,
+                duration=self.travel_duration(),
             )
 
             self.refunding_vig_chips.append(refund)
@@ -454,14 +468,14 @@ class WagerAnimationController:
                 for sprite in self.payout_sprites:
                     sprite.move_to(
                         player_position,
-                        duration=0.4,
+                        duration=self.travel_duration(),
                     )
 
                 # Return wager principal when appropriate.
                 for sprite in self.returning_wagers:
                     sprite.move_to(
                         player_position,
-                        duration=0.4,
+                        duration=self.travel_duration(),
                     )
 
                 self.payout_stage = "returning"

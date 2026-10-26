@@ -124,7 +124,10 @@ class PlayingState(BaseState):
         )
 
 
-        self.wager_animator = WagerAnimationController(self)
+        self.wager_animator = WagerAnimationController(
+            state=self,
+            settings=app.animation_settings,
+        )
 
 
     @property
@@ -388,7 +391,6 @@ class PlayingState(BaseState):
         self.dice_sprite.roll(self.current_roll.roll)
 
 
-
     def update(self, dt: float) -> None:
         self.visible_sprites.update(dt)
         self.dice_sprite.update(dt)
@@ -415,7 +417,6 @@ class PlayingState(BaseState):
             case RollPhase.DICE_RETURNING:
                 if self.dice_return_complete:
                     self.finish_roll()
-
 
 
     def draw(self, screen: pg.Surface):

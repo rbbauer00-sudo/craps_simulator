@@ -4,6 +4,7 @@ import pygame as pg
 from engine import GameEngine, GameSettings
 from ui.state_stack import StateStack
 from ui.states.playing_state import PlayingState
+from ui.animations import AnimationSettings
 
 class CrapsApp:
     WIDTH = 1280
@@ -12,9 +13,13 @@ class CrapsApp:
 
     def __init__(
         self,
-        settings: GameSettings | None = None
+        game_settings: GameSettings | None = None,
+        animation_settings: AnimationSettings | None = None,
     ):
         pg.init()
+
+        self.animation_settings = animation_settings or AnimationSettings()
+    
         self.screen = pg.display.set_mode((self.WIDTH, self.HEIGHT))
         pg.display.set_caption("Craps Simulator")
         self.clock = pg.time.Clock()
@@ -22,7 +27,7 @@ class CrapsApp:
         self.running = False
 
         # Engine integration can be added when roll controls are built.
-        self.engine = GameEngine(settings=settings)
+        self.engine = GameEngine(settings=game_settings)
         self.states = StateStack()
         self.states.push(PlayingState(self))
 
