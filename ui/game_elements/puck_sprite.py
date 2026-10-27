@@ -3,13 +3,13 @@ from pygame.math import Vector2 as Vector
 
 class PuckSprite(pg.sprite.Sprite):
     POINT_POSITIONS = {
-        4: (170, 110),
-        5: (280, 110),
-        6: (390, 110),
-        8: (500, 110),
-        9: (610, 110),
-        10: (720, 110),
-        None: (850, 110),
+        4: (170, 65),
+        5: (280, 65),
+        6: (390, 65),
+        8: (500, 65),
+        9: (610, 65),
+        10: (720, 65),
+        None: (850, 65),
 
     }
                     
@@ -76,7 +76,7 @@ class PuckSprite(pg.sprite.Sprite):
         )
 
         text = self.font.render(
-            f"ON" if self.point else "OFF",
+            f"{self.point}" if self.point else "OFF",
             True,
             black if self.point else white
         )
@@ -144,13 +144,13 @@ class PuckSprite(pg.sprite.Sprite):
             self.is_animating = False
 
 
-    def snap_to(self, point: int | None) -> None:
-        self.is_animating = False
-        self.point = point
+def snap_to(self, point: int | None) -> None:
+    self.is_animating = False
+    self.point = point
 
-        self.rect.center = self.position_for(point)
+    self.rect.center = self.position_for(point)
 
-        self.start_position = Vector(self.rect.center)
-        self.target_position = self.start_position.copy()
+    self.start_position = Vector(self.rect.center)
+    self.target_position = self.start_position.copy()
 
-        self.render_image()
+    self.render_image()

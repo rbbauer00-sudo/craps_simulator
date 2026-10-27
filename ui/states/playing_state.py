@@ -736,7 +736,7 @@ class PlayingState(BaseState):
             # Position the label above the puck.
             label_position = (
                 position[0],
-                position[1] - 45,
+                position[1],
             )
 
             screen.blit(
