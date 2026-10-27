@@ -144,13 +144,13 @@ class WagerAnimationController:
                 case Resolution.MOVE:
                     target = result.move_to
 
-                    if target not in state.COME_POSITIONS:
+                    if target not in state.layout.COME_POSITIONS:
                         raise ValueError(
                             f"No Come position defined for {target}"
                         )
 
                     sprite.move_to(
-                        state.COME_POSITIONS[target],
+                        state.layout.COME_POSITIONS[target],
                         duration=self.travel_duration(),
                     )
                     self.moving_wagers.append(sprite)
@@ -272,13 +272,13 @@ class WagerAnimationController:
                 case Resolution.MOVE:
                     target = result.move_to
 
-                    if target not in state.COME_POSITIONS:
+                    if target not in state.layout.COME_POSITIONS:
                         raise ValueError(
                             f"No Come position defined for {target}"
                         )
 
                     sprite.move_to(
-                        state.COME_POSITIONS[target],
+                        state.layout.COME_POSITIONS[target],
                         duration=duration,
                     )
 
@@ -355,12 +355,12 @@ class WagerAnimationController:
                 case Resolution.MOVE:
                     target = result.move_to
 
-                    if target not in state.COME_POSITIONS:
+                    if target not in state.layout.COME_POSITIONS:
                         raise ValueError(
                             f"No Come position defined for {target}"
                         )
 
-                    sprite.rect.center = state.COME_POSITIONS[target]
+                    sprite.rect.center = state.layout.COME_POSITIONS[target]
 
                 case Resolution.REMOVE:
                     self.returning_wagers.append(sprite)
@@ -411,12 +411,12 @@ class WagerAnimationController:
                 case Resolution.MOVE:
                     target = result.move_to
 
-                    if target not in state.COME_POSITIONS:
+                    if target not in state.layout.COME_POSITIONS:
                         raise ValueError(
                             f"No Come position defined for {target}"
                         )
 
-                    sprite.rect.center = state.COME_POSITIONS[target]
+                    sprite.rect.center = state.layout.COME_POSITIONS[target]
 
                 case Resolution.PUSH | Resolution.NONE:
                     pass

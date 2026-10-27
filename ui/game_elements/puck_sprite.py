@@ -1,17 +1,10 @@
 import pygame as pg
 from pygame.math import Vector2 as Vector
+from ui.layout.table_layout import TableLayout
 
 class PuckSprite(pg.sprite.Sprite):
-    POINT_POSITIONS = {
-        4: (170, 65),
-        5: (280, 65),
-        6: (390, 65),
-        8: (500, 65),
-        9: (610, 65),
-        10: (720, 65),
-        None: (850, 65),
 
-    }
+    POINT_POSITIONS = TableLayout.PUCK_POSITIONS
                     
     def __init__(
         self,
@@ -87,6 +80,18 @@ class PuckSprite(pg.sprite.Sprite):
                 center=(self.radius, self.radius,),
             ),
         )
+
+    def snap_to(self, point: int | None) -> None:
+        self.is_animating = False
+        self.point = point
+
+        self.rect.center = self.position_for(point)
+
+        self.start_position = Vector(self.rect.center)
+        self.target_position = self.start_position.copy()
+
+        self.animation_elapsed = 0.0
+        self.render_image()
 
 
     def on_roll(

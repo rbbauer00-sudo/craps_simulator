@@ -64,7 +64,7 @@ def test_come_bet_travels(come_game):
 
     assert sprite is original_sprite
     assert sprite.rect.center == pytest.approx(
-        state.COME_POSITIONS[6],
+        state.layout.COME_POSITIONS[6],
         abs=1,
     )
 
@@ -165,7 +165,7 @@ def test_three_point_molly_all_lose(come_game):
         sprite = state.wager_sprites[wager]
 
         assert sprite.rect.center == pytest.approx(
-            state.COME_POSITIONS[wager.target],
+            state.layout.COME_POSITIONS[wager.target],
             abs=1,
         )
 
