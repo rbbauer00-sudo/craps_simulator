@@ -20,7 +20,9 @@ class NewGameState(BaseState):
 
         self.name = "Player 0"
         self.bankroll_text = "1500"
-        self.active_field = None
+        self.active_field = "name"
+        self.text_selected = True
+        self.caret_elapsed = 0.0
         self.game_settings = app.engine.settings
 
         self.font = pg.font.SysFont(None, 28)
@@ -49,16 +51,17 @@ class NewGameState(BaseState):
     def go_back(self):
         self.app.states.pop()
 
+    
     def handle_event(self, event):
         if event.type == pg.MOUSEBUTTONDOWN:
             if event.button != 1:
                 return
 
             if self.NAME_RECT.collidepoint(event.pos):
-                self.active_field = "name"
+                self.focus_field("name")
 
             elif self.BANKROLL_RECT.collidepoint(event.pos):
-                self.active_field = "bankroll"
+                self.focus_field("bankroll")
 
             elif self.RULES_BUTTON.collidepoint(event.pos):
                 self.app.states.push(
@@ -73,49 +76,95 @@ class NewGameState(BaseState):
 
             else:
                 self.active_field = None
+                self.text_selected = False
 
-        elif event.type == pg.KEYDOWN:
-            if event.key == pg.K_ESCAPE:
-                self.go_back()
+            return
+
+        if event.type != pg.KEYDOWN:
+            return
+
+        if event.key == pg.K_ESCAPE:
+            self.go_back()
+            return
+
+        if event.key == pg.K_RETURN:
+            self.start_game()
+            return
+
+        if event.key == pg.K_TAB:
+            next_field = (
+                "bankroll"
+                if self.active_field == "name"
+                else "name"
+            )
+            self.focus_field(next_field)
+            return
+
+        if self.active_field is None:
+            return
+
+        # Ctrl+A on Windows/Linux, Cmd+A on macOS.
+        if (
+            event.key == pg.K_a
+            and event.mod & (pg.KMOD_CTRL | pg.KMOD_META)
+        ):
+            self.text_selected = True
+            return
+
+        current = self.field_value(self.active_field)
+
+        if event.key == pg.K_BACKSPACE:
+            value = (
+                ""
+                if self.text_selected
+                else current[:-1]
+            )
+
+            self.set_field_value(self.active_field, value)
+            self.text_selected = False
+            self.caret_elapsed = 0.0
+            return
+
+        # Ignore keyboard shortcuts other than Select All.
+        if event.mod & (pg.KMOD_CTRL | pg.KMOD_META | pg.KMOD_ALT):
+            return
+
+        char = event.unicode
+
+        if not char or not char.isprintable():
+            return
+
+        if self.active_field == "bankroll":
+            if not (char.isascii() and char.isdigit()):
                 return
+            limit = 9
+        else:
+            limit = 30
 
-            if event.key == pg.K_TAB:
-                self.active_field = (
-                    "bankroll"
-                    if self.active_field == "name"
-                    else "name"
-                )
-                return
+        value = (
+            ""
+            if self.text_selected
+            else current
+        )
 
-            if event.key == pg.K_RETURN:
-                self.start_game()
-                return
+        if len(value) >= limit:
+            return
 
-            if self.active_field is None:
-                return
+        self.set_field_value(
+            self.active_field,
+            value + char,
+        )
 
-            if event.key == pg.K_BACKSPACE:
-                if self.active_field == "name":
-                    self.name = self.name[:-1]
-                else:
-                    self.bankroll_text = (
-                        self.bankroll_text[:-1]
-                    )
-                return
+        self.text_selected = False
+        self.caret_elapsed = 0.0
+        self.error = ""
 
-            char = event.unicode
-
-            if self.active_field == "name":
-                if char.isprintable() and len(self.name) < 30:
-                    self.name += char
-
-            elif self.active_field == "bankroll":
-                if char.isascii() and char.isdigit():
-                    if len(self.bankroll_text) < 9:
-                        self.bankroll_text += char
 
     def update(self, dt):
-        pass
+        self.caret_elapsed = (
+            self.caret_elapsed + dt
+        ) % 1.0
+
 
     def draw(self, screen):
         screen.fill((25, 40, 35))
@@ -166,43 +215,88 @@ class NewGameState(BaseState):
             ),
         )
 
+        
         for label, rect, value, field in fields:
+            focused = self.active_field == field
+            selected = focused and self.text_selected
+
             label_surface = self.font.render(
                 label,
                 True,
                 (230, 230, 230),
             )
+
             screen.blit(
                 label_surface,
                 (rect.left, rect.top - 32),
             )
 
+            # Brighter background for the active field.
             pg.draw.rect(
                 screen,
-                (55, 55, 55),
+                (55, 70, 65) if focused else (55, 55, 55),
                 rect,
                 border_radius=6,
             )
 
             pg.draw.rect(
                 screen,
-                (100, 180, 130)
-                if self.active_field == field
-                else (150, 150, 150),
+                (100, 220, 150)
+                if focused else (150, 150, 150),
                 rect,
-                width=2,
+                width=3 if focused else 2,
                 border_radius=6,
             )
 
-            text = self.font.render(
+            text_pos = (
+                rect.left + 12,
+                rect.centery - self.font.get_height() / 2,
+            )
+
+            text_surface = self.font.render(
                 value,
                 True,
                 (245, 245, 245),
             )
-            screen.blit(
-                text,
-                (rect.left + 12, rect.centery - 12),
-            )
+
+            # Highlight selected text.
+            if selected and value:
+                highlight_rect = pg.FRect(
+                    text_pos[0] - 2,
+                    rect.centery - 16,
+                    self.font.size(value)[0] + 4,
+                    32,
+                )
+
+                pg.draw.rect(
+                    screen,
+                    (50, 105, 160),
+                    highlight_rect,
+                    border_radius=3,
+                )
+
+            screen.blit(text_surface, text_pos)
+
+            # Blinking caret when text isn't selected.
+            if (
+                focused
+                and not selected
+                and self.caret_elapsed < 0.5
+            ):
+                caret_x = (
+                    text_pos[0]
+                    + self.font.size(value)[0]
+                    + 2
+                )
+
+                pg.draw.line(
+                    screen,
+                    (245, 245, 245),
+                    (caret_x, rect.centery - 14),
+                    (caret_x, rect.centery + 14),
+                    width=2,
+                )
+
 
         for rect, label in (
             (self.BACK_BUTTON, "BACK"),
@@ -237,3 +331,25 @@ class NewGameState(BaseState):
                     center=(640, 530)
                 ),
             )
+
+    def focus_field(self, field: str) -> None:
+        self.active_field = field
+        self.text_selected = True
+        self.caret_elapsed = 0.0
+
+
+    def field_value(self, field: str) -> str:
+        if field == "name":
+            return self.name
+        if field == "bankroll":
+            return self.bankroll_text
+        raise ValueError(f"Unknown field: {field}")
+
+
+    def set_field_value(self, field: str, value: str) -> None:
+        if field == "name":
+            self.name = value
+        elif field == "bankroll":
+            self.bankroll_text = value
+        else:
+            raise ValueError(f"Unknown field: {field}")
