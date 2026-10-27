@@ -47,11 +47,6 @@ class TableLayout:
         100: pg.FRect(780, 680, 85, 55),
     }
 
-    TOOL_BUTTONS = {
-        CursorTool.ON: pg.FRect(900, 680, 70, 55),
-        CursorTool.OFF: pg.FRect(980, 680, 70, 55),
-    }
-
     TABLE_RECT = pg.FRect(20, 20, 940, 580)
     SIDEBAR_RECT = pg.FRect(980, 20, 280, 580)
     CONTROLS_RECT = pg.FRect(20, 620, 1240, 160)
