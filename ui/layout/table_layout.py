@@ -2,7 +2,7 @@
 import pygame as pg
 
 from engine import defs, WagerType
-from ui.input import BettingArea
+from ui.input import BettingArea,CursorTool
 
 
 class TableLayout:
@@ -29,6 +29,26 @@ class TableLayout:
 
     DICE_POSITION = (150, 500)
     DEALER_POSITION = (640, -50)
+
+    PLAYER_POSITION = (1000, 40)
+
+    CHIP_BUTTONS = {
+        1: pg.FRect(301, 680, 80, 55),
+        5: pg.FRect(400, 680, 85, 55),
+        10: pg.FRect(495, 680, 85, 55),
+        25: pg.FRect(590, 680, 85, 55),
+        50: pg.FRect(685, 680, 85, 55),
+        100: pg.FRect(780, 680, 85, 55),
+    }
+
+    TOOL_BUTTONS = {
+        CursorTool.ON: pg.FRect(900, 680, 70, 55),
+        CursorTool.OFF: pg.FRect(980, 680, 70, 55),
+    }
+
+    TABLE_RECT = pg.FRect(20, 20, 940, 580)
+    SIDEBAR_RECT = pg.FRect(980, 20, 280, 580)
+    CONTROLS_RECT = pg.FRect(20, 620, 1240, 160)
 
     @classmethod
     def create_betting_areas(cls) -> list[BettingArea]:

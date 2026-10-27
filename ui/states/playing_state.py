@@ -71,9 +71,6 @@ class PlayingState(BaseState):
     COME_BOX_POSITION = TableLayout.COME_BOX_POSITION
     COME_POSITIONS = TableLayout.COME_POSITIONS
 
-
-class PlayingState(BaseState):
-
     def __init__(self, app: CrapsApp):
         super().__init__(app)
         self.engine = app.engine
@@ -87,25 +84,11 @@ class PlayingState(BaseState):
         self.selected_tool = CursorTool.CHIP
         self.selected_chip = 25
 
-        # UI elements
-        self.chip_buttons = {
-            1: pg.FRect(301, 680, 80, 55),
-            5: pg.FRect(400, 680, 85, 55),
-            10: pg.FRect(495, 680, 85, 55),
-            25: pg.FRect(590, 680, 85, 55),
-            50: pg.FRect(685, 680, 85, 55),
-            100: pg.FRect(780, 680, 85, 55),
-        }
-
-        self.tool_buttons = {
-            CursorTool.ON: pg.FRect(900, 680, 70, 55),
-            CursorTool.OFF: pg.FRect(980, 680, 70, 55),   
-        }
-
-        # Game elements
         self.layout = TableLayout()
         self.areas = self.layout.create_betting_areas()
-
+        
+        self.chip_buttons = self.layout.CHIP_BUTTONS
+        self.tool_buttons = self.layout.TOOL_BUTTONS
 
         self.dice_sprite = DiceSprite(
             size=50,
@@ -635,10 +618,23 @@ class PlayingState(BaseState):
     def draw(self, screen: pg.Surface):
         screen.fill((30, 30, 30))
 
-        # Temporary rectangles
-        pg.draw.rect(screen, (30, 90, 50), (20, 20, 940, 580))
-        pg.draw.rect(screen, (55, 55, 55), (980, 20, 280, 580))
-        pg.draw.rect(screen, (55, 55, 55), (20, 620, 1240, 160))
+        pg.draw.rect(
+            screen,
+            (30, 90, 50),
+            self.layout.TABLE_RECT,
+        )
+
+        pg.draw.rect(
+            screen,
+            (55, 55, 55),
+            self.layout.SIDEBAR_RECT,
+        )
+
+        pg.draw.rect(
+            screen,
+            (55, 55, 55),
+            self.layout.CONTROLS_RECT,
+        )
 
 
         # Draw Betting Areas
