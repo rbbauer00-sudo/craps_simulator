@@ -68,8 +68,6 @@ class RollBuffer:
 
 
 class PlayingState(BaseState):
-    COME_BOX_POSITION = TableLayout.COME_BOX_POSITION
-    COME_POSITIONS = TableLayout.COME_POSITIONS
 
     def __init__(self, app: CrapsApp):
         super().__init__(app)
@@ -111,7 +109,7 @@ class PlayingState(BaseState):
 
         self.player_sprite = PlayerSprite(
             self.player,
-            (1000,40),
+            self.layout.PLAYER_POSITION,
             self.visible_sprites,
         )
 

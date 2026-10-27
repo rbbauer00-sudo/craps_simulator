@@ -6,7 +6,6 @@ from ui.input import BettingArea,CursorTool
 
 
 class TableLayout:
-    COME_BOX_POSITION = (290, 250)
 
     COME_POSITIONS = {
         4: (170, 190),
@@ -65,20 +64,8 @@ class TableLayout:
             ),
             BettingArea(
                 "COME",
-                pg.FRect(225, 215, 130, 70),
+                pg.FRect(225, 425, 130, 60),
                 defs.COME,
-            ),
-            BettingArea(
-                "PLACE 6",
-                pg.FRect(350, 300, 120, 70),
-                defs.PLACE_BET,
-                target=6,
-            ),
-            BettingArea(
-                "LAY 4",
-                pg.FRect(110, 340, 120, 70),
-                defs.LAY_BET,
-                target=4,
             ),
             BettingArea(
                 "PASS ODDS",
@@ -104,5 +91,21 @@ class TableLayout:
                     parent_target=number,
                 )
             )
+
+        for number, (x, _) in cls.COME_POSITIONS.items():
+            areas.extend([
+                BettingArea(
+                    f"PLACE {number}",
+                    pg.FRect(x - 45, 300, 90, 45),
+                    defs.PLACE_BET,
+                    target=number,
+                ),
+                BettingArea(
+                    f"LAY {number}",
+                    pg.FRect(x - 45, 365, 90, 45),
+                    defs.LAY_BET,
+                    target=number,
+                ),
+            ])
 
         return areas
