@@ -29,6 +29,7 @@ class GameSettings:
     buy_vig_setting: VigSetting = VigSetting.AUTO_BUY
     auto_buy_level: int = 20
     allow_put_bets: bool = True
+    vig_rate: float = 0.05
 
 
 class Game:
@@ -270,15 +271,17 @@ class Game:
         # Charge vig to player, if applicable
         wager_type = wager.definition.wager_type
         up_front_vig = (
-            self.calculate_vig(wager) 
+            self.calculate_vig(wager)
             if (
                 wager_type is WagerType.LAY_BET
                 or (
-                    self.settings.buy_vig_setting == 
-                        VigSetting.UP_FRONT
-                    and wager_type is WagerType.PLACE_BET
+                    wager_type is WagerType.PLACE_BET
+                    and wager.is_buy
+                    and self.settings.buy_vig_setting
+                        is VigSetting.UP_FRONT
                 )
-            ) else 0
+            )
+            else 0
         )
 
         # Withdraw player funds
@@ -329,15 +332,17 @@ class Game:
         wager_type = wager.definition.wager_type
 
         new_up_front_vig = (
-            self.calculate_vig(wager, new_value) 
+            self.calculate_vig(wager, new_value)
             if (
                 wager_type is WagerType.LAY_BET
                 or (
-                    self.settings.buy_vig_setting == 
-                        VigSetting.UP_FRONT
-                    and wager_type is WagerType.PLACE_BET
+                    wager_type is WagerType.PLACE_BET
+                    and wager.is_buy
+                    and self.settings.buy_vig_setting
+                        is VigSetting.UP_FRONT
                 )
-            ) else 0
+            )
+            else 0
         )
 
         vig_due = new_up_front_vig - wager.collected_vig
@@ -391,15 +396,17 @@ class Game:
         wager_type = wager.definition.wager_type
         
         new_up_front_vig = (
-            self.calculate_vig(wager, new_value) 
+            self.calculate_vig(wager, new_value)
             if (
                 wager_type is WagerType.LAY_BET
                 or (
-                    self.settings.buy_vig_setting == 
-                        VigSetting.UP_FRONT
-                    and wager_type is WagerType.PLACE_BET
+                    wager_type is WagerType.PLACE_BET
+                    and wager.is_buy
+                    and self.settings.buy_vig_setting
+                        is VigSetting.UP_FRONT
                 )
-            ) else 0
+            )
+            else 0
         )
 
         vig_refund = wager.collected_vig - new_up_front_vig
@@ -476,8 +483,11 @@ class Game:
         self._wagers.remove(wager)
 
 
-    @staticmethod
-    def calculate_vig(wager: Wager, new_value: int | None = None):
+    def calculate_vig(
+        self, 
+        wager: Wager, 
+        new_value: int | None = None,
+    ):
         """
         Returns the vig charged on a wager of a specified value.
         Uses wager current value if new_value is not specified.
@@ -523,48 +533,66 @@ class Game:
         else:
             vig_basis = 0
 
+        vig_rate = self.settings.vig_rate
+
         return (
-            max(1, round((vig_basis * 0.05)))
+            max(1, round((vig_basis * vig_rate)))
             if vig_basis
             else 0
         )
 
 
     def set_wager_buy_status(
-        self, 
+        self,
         wager: Wager,
         new_status: bool,
     ) -> None:
         """
-        Toggles buy status of PLACE wager
-        and handles vig accounting.
-        Raises error if attempted on any
-        other wager type.
+        Convert an active PLACE_BET between Place and Buy.
+
+        Preserves wager identity and principal.
+        Adjusts upfront commission when applicable.
         """
+
         if wager not in self.wagers:
             raise GameRuleViolation(
                 "Cannot modify an inactive wager."
             )
 
-        old_status = wager._is_buy
+        if wager.definition.wager_type is not WagerType.PLACE_BET:
+            raise GameRuleViolation(
+                "Only Place bets can be converted to Buy."
+            )
 
-        wager.is_buy = new_status
+        if type(new_status) is not bool:
+            raise TypeError(
+                "Buy status must be a bool."
+            )
+
+        if wager._is_buy == new_status:
+            return
 
         if self.settings.buy_vig_setting is VigSetting.UP_FRONT:
-            new_vig = self.calculate_vig(wager)
-            delta_vig = new_vig - wager.collected_vig
+            new_vig = (
+                max(1, round(wager.value * self.settings.vig_rate))
+                if new_status
+                else 0
+            )
+        else:
+            new_vig = 0
 
-            try:
-                if delta_vig > 0:
-                    wager.player.withdraw(delta_vig)
-                elif delta_vig < 0:
-                    wager.player.deposit(-delta_vig)
+        vig_difference = new_vig - wager.collected_vig
 
-            except Exception:
-                wager._is_buy = old_status
-                raise
+        # Complete all financial transactions before
+        # changing the wager's status.
+        if vig_difference > 0:
+            wager.player.withdraw(vig_difference)
 
-            wager.collected_vig = new_vig
+        elif vig_difference < 0:
+            wager.player.deposit(-vig_difference)
+
+        wager.is_buy = new_status
+        wager.collected_vig = new_vig
 
 
     def set_wager_working_status(

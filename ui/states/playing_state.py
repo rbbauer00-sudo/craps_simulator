@@ -511,9 +511,13 @@ class PlayingState(BaseState):
                     wager, False
                 )
 
-            case CursorTool.BUY | CursorTool.PLACE:
-                # We'll implement these next.
-                pass
+            case CursorTool.BUY:
+                self.engine.set_wager_buy_status(wager, True)
+                self.player_sprite.sync_bankroll()
+
+            case CursorTool.PLACE:
+                self.engine.set_wager_buy_status(wager, False)
+                self.player_sprite.sync_bankroll()
 
 
     def wager_at_position(

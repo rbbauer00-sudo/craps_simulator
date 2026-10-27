@@ -25,6 +25,7 @@ class WagerSprite(ChipSprite):
         )
 
         self.displayed_working = self.wager.is_working
+        self.displayed_buy = self.wager.is_buy
         self.render_image()
         self.auto_sync_value = True
 
@@ -32,15 +33,17 @@ class WagerSprite(ChipSprite):
     def render_image(self) -> None:
         self.value = self.wager.value
 
-        self.color = (
-            (35, 74, 180)
-            if self.wager.is_working
-            else (85, 85, 85)
-        )
+        if not self.wager.is_working:
+            self.color = (85, 85, 85)
+        elif self.wager.is_buy:
+            self.color = (160, 105, 35)
+        else:
+            self.color = (35, 74, 180)
 
         super().render_image()
 
         self.displayed_working = self.wager.is_working
+        self.displayed_buy = self.wager.is_buy
 
 
     def update(self, dt: float):
@@ -55,8 +58,18 @@ class WagerSprite(ChipSprite):
             self.wager.is_working != self.displayed_working
         )
 
-        if value_changed or working_changed:
+        buy_changed = (
+            self.wager.is_buy != self.displayed_buy
+        )
+
+        if (
+            value_changed 
+            or working_changed
+            or buy_changed
+        ):
             self.render_image()
+
+        
 
 
     def sync_value(self) -> None:

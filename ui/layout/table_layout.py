@@ -26,6 +26,13 @@ class TableLayout:
         None: (850, 65),
     }
 
+    TOOL_BUTTONS = {
+        CursorTool.ON: pg.FRect(900, 680, 70, 55),
+        CursorTool.OFF: pg.FRect(980, 680, 70, 55),
+        CursorTool.BUY: pg.FRect(1060, 680, 85, 55),
+        CursorTool.PLACE: pg.FRect(1150, 680, 85, 55),
+    }
+
     DICE_POSITION = (150, 500)
     DEALER_POSITION = (640, -50)
 
