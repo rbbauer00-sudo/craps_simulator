@@ -2,8 +2,14 @@
 import pygame as pg
 
 from ui.states.game_menu_state import GameMenuState
-
+from ui.states.new_game_state import NewGameState
 from .helpers import click
+#from engine import WagerType
+from ui.animations import AnimationMode, AnimationSettings
+from ui.states.playing_state import PlayingState
+from ui.states.settings_state import SettingsState
+
+
 
 
 def press_escape(state):
@@ -183,10 +189,6 @@ def test_menu_freezes_active_animation(ui_app):
 
 
 
-from engine import WagerType
-from ui.animations import AnimationMode
-from ui.states.playing_state import PlayingState
-from ui.states.settings_state import SettingsState
 
 
 def test_new_game_resets_engine(ui_app):
@@ -198,10 +200,20 @@ def test_new_game_resets_engine(ui_app):
     press_escape(playing)
     menu = ui_app.states.current
 
-    assert isinstance(menu, GameMenuState)
-    assert menu.can_start_new_game
-
     click(menu, menu.NEW_GAME_BUTTON.center)
+
+    setup = ui_app.states.current
+
+    assert isinstance(setup, NewGameState)
+
+    # Opening setup must preserve the old session.
+    assert ui_app.engine is original_engine
+    assert setup.game_settings == original_settings
+
+    setup.name = "New Player"
+    setup.bankroll_text = "2500"
+
+    click(setup, setup.START_BUTTON.center)
 
     assert ui_app.engine is not original_engine
     assert ui_app.engine.settings == original_settings
@@ -212,8 +224,14 @@ def test_new_game_resets_engine(ui_app):
     )
 
     assert ui_app.states.current is not playing
-    assert not ui_app.engine.wagers
     assert ui_app.engine.point is None
+    assert not ui_app.engine.wagers
+
+    player = ui_app.engine.players[0]
+
+    assert player.name == "New Player"
+    assert player.bankroll == 2500
+
 
 def test_settings_change_animation_mode(ui_app):
     playing = ui_app.states.current
@@ -293,3 +311,96 @@ def test_settings_disabled_during_animation(ui_app):
     assert playing.is_animating
 
 
+
+def test_cancel_new_game_preserves_session(ui_app):
+    playing = ui_app.states.current
+    original_engine = ui_app.engine
+
+    press_escape(playing)
+    menu = ui_app.states.current
+
+    click(menu, menu.NEW_GAME_BUTTON.center)
+
+    setup = ui_app.states.current
+
+    assert isinstance(setup, NewGameState)
+
+    # Change pending options.
+    setup.bankroll_text = "5000"
+
+    # Cancel.
+    click(setup, setup.BACK_BUTTON.center)
+
+    assert ui_app.states.current is menu
+    assert ui_app.engine is original_engine
+
+    # Resume original session.
+    click(menu, menu.RESUME_BUTTON.center)
+
+    assert ui_app.states.current is playing
+    assert ui_app.engine is original_engine
+
+
+
+def test_new_game_during_animation(ui_app):
+    playing = ui_app.states.current
+
+    ui_app.set_animation_settings(
+        AnimationSettings(mode=AnimationMode.FULL),
+        playing_state=playing,
+    )
+
+    playing.roll()
+    assert playing.is_animating
+
+    original_engine = ui_app.engine
+
+    press_escape(playing)
+    menu = ui_app.states.current
+
+    click(menu, menu.NEW_GAME_BUTTON.center)
+
+    setup = ui_app.states.current
+    assert isinstance(setup, NewGameState)
+
+    # Starting setup must not interrupt the old roll.
+    assert ui_app.engine is original_engine
+    assert playing.is_animating
+
+    click(setup, setup.START_BUTTON.center)
+
+    # The old animation and states are discarded.
+    assert ui_app.engine is not original_engine
+    assert isinstance(
+        ui_app.states.current,
+        PlayingState,
+    )
+
+    assert not ui_app.states.current.is_animating
+
+
+
+def test_cancel_new_game_during_animation(ui_app):
+    playing = ui_app.states.current
+
+    ui_app.set_animation_settings(
+        AnimationSettings(mode=AnimationMode.FULL),
+        playing_state=playing,
+    )
+
+    playing.roll()
+    assert playing.is_animating
+
+    press_escape(playing)
+    menu = ui_app.states.current
+
+    click(menu, menu.NEW_GAME_BUTTON.center)
+    setup = ui_app.states.current
+
+    click(setup, setup.BACK_BUTTON.center)
+    assert ui_app.states.current is menu
+
+    click(menu, menu.RESUME_BUTTON.center)
+
+    assert ui_app.states.current is playing
+    assert playing.is_animating

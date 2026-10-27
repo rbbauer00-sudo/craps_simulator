@@ -21,7 +21,7 @@ class NewGameState(BaseState):
         self.name = "Player 0"
         self.bankroll_text = "1500"
         self.active_field = None
-        self.game_settings = GameSettings()
+        self.game_settings = app.engine.settings
 
         self.font = pg.font.SysFont(None, 28)
         self.title_font = pg.font.SysFont(

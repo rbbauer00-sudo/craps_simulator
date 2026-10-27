@@ -33,9 +33,15 @@ class GameMenuState(BaseState):
         self.app.states.pop()
 
     def new_game(self):
-        if self.can_start_new_game:
-            self.app.new_game()
+        if not self.can_start_new_game:
+            return
 
+        from .new_game_state import NewGameState
+
+        self.app.states.push(
+            NewGameState(self.app)
+        )
+        
     def open_settings(self):
         from .settings_state import SettingsState
 
