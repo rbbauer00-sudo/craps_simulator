@@ -10,6 +10,10 @@ from ui.animations.animation_settings import AnimationMode
 from ui.game_elements.bonus_progress_sprite import BonusProgressSprite
 from ui.input import CursorTool, BettingArea
 from ui.layout.table_layout import TableLayout
+from ui.game_elements.hop_tray import HopTray
+from ui.states.hop_bet_state import HopBetState
+from .game_menu_state import GameMenuState
+
 
 from typing import TYPE_CHECKING
 if TYPE_CHECKING:
@@ -88,6 +92,8 @@ class PlayingState(BaseState):
         
         self.chip_buttons = self.layout.CHIP_BUTTONS
         self.tool_buttons = self.layout.TOOL_BUTTONS
+
+        self.hop_tray = HopTray(self.engine)
 
         self.dice_sprite = DiceSprite(
             size=50,
@@ -239,9 +245,8 @@ class PlayingState(BaseState):
 
   
     def handle_event(self, event: pg.event.Event) -> None:
-        # Escape always works, even during animations.
         if event.type == pg.KEYDOWN and event.key == pg.K_ESCAPE:
-            self.app.running = False
+            self.app.states.push(GameMenuState(self.app))
             return
 
         if self.is_animating:
@@ -258,6 +263,10 @@ class PlayingState(BaseState):
                         return
 
                     if self.handle_tool_click(event.pos):
+                        return
+
+                    if self.hop_tray.RECT.collidepoint(event.pos):
+                        self.app.states.push(HopBetState(self.app, self))
                         return
 
                     if self.dice_sprite.rect.collidepoint(event.pos):
@@ -710,6 +719,8 @@ class PlayingState(BaseState):
                 tool.name,
                 selected=tool is self.selected_tool,
             )
+
+        self.hop_tray.draw(screen)
 
         self.visible_sprites.draw(screen)
 

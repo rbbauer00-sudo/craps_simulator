@@ -3,7 +3,7 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
-from engine import Resolution, Wager
+from engine import Resolution, Wager, WagerType
 from .animation_settings import AnimationSettings, AnimationMode
 from ui.game_elements import ChipSprite, WagerSprite
 
@@ -472,11 +472,18 @@ class WagerAnimationController:
     ) -> None:
         state = self.state
 
+        radius = (
+            13
+            if wager.definition.wager_type is WagerType.HOP
+            else 25
+        )
+
         if self.settings.mode is AnimationMode.INSTANT:
             sprite = WagerSprite(
                 wager,
                 destination,
                 state.visible_sprites,
+                radius=radius,
             )
 
             state.wager_sprites[wager] = sprite
@@ -490,6 +497,7 @@ class WagerAnimationController:
             wager,
             player_position,
             state.visible_sprites,
+            radius=radius,
         )
 
         state.wager_sprites[wager] = sprite

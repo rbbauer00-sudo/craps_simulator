@@ -15,6 +15,7 @@ class WagerSprite(ChipSprite):
         wager: Wager,
         center: tuple[int, int],
         *groups: pg.sprite.AbstractGroup,
+        radius: int = 25
     ) -> None:
         self.wager = wager
 
@@ -22,6 +23,7 @@ class WagerSprite(ChipSprite):
             wager.value,
             center,
             *groups,
+            radius=radius,
         )
 
         self.displayed_working = self.wager.is_working

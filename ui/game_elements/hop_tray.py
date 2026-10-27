@@ -25,7 +25,7 @@ class HopTray:
         self.positions = {
             target: (
                 48 + (index % 6) * 40,
-                669 + (index // 6) * 45,
+                678 + (index // 6) * 44,
             )
             for index, target in enumerate(self.TARGETS)
         }
@@ -61,7 +61,7 @@ class HopTray:
         )
 
         title = self.title_font.render(
-            f"HOPS ({len(self.active_wagers())})",
+            f"HOPS  |  {len(self.active_wagers())} active  |  OPEN",
             True,
             (240, 240, 240),
         )
@@ -77,6 +77,6 @@ class HopTray:
             screen.blit(
                 label,
                 label.get_frect(
-                    center=(position[0], position[1] - 23)
+                    center=(position[0], position[1] - 22)
                 ),
             )
