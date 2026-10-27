@@ -17,7 +17,7 @@ class SettingsState(BaseState):
 
     MODES = tuple(AnimationMode)
 
-    def __init__(self, app, playing_state):
+    def __init__(self, app, playing_state=None):
         super().__init__(app)
 
         self.playing = playing_state
@@ -40,7 +40,10 @@ class SettingsState(BaseState):
 
     @property
     def can_change_animation(self) -> bool:
-        return not self.playing.is_animating
+        return (
+            self.playing is None
+            or not self.playing.is_animating
+        )
 
     def select_mode(self, mode: AnimationMode):
         if not self.can_change_animation:

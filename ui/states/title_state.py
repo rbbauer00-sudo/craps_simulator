@@ -3,6 +3,7 @@ import pygame as pg
 
 from .base_state import BaseState
 from .new_game_state import NewGameState
+from .settings_state import SettingsState
 
 
 class TitleState(BaseState):
@@ -42,11 +43,15 @@ class TitleState(BaseState):
         if self.NEW_GAME_BUTTON.collidepoint(event.pos):
             self.start_game()
 
+        elif self.SETTINGS_BUTTON.collidepoint(event.pos):
+            self.open_settings()
+
         elif self.QUIT_BUTTON.collidepoint(event.pos):
             self.app.running = False
 
     def update(self, dt):
         pass
+
 
     def draw(self, screen):
         screen.fill((25, 40, 35))
@@ -66,7 +71,7 @@ class TitleState(BaseState):
 
         buttons = (
             (self.NEW_GAME_BUTTON, "NEW GAME", True),
-            (self.SETTINGS_BUTTON, "SETTINGS", False),
+            (self.SETTINGS_BUTTON, "SETTINGS", True),
             (self.QUIT_BUTTON, "QUIT", True),
         )
 
@@ -98,3 +103,8 @@ class TitleState(BaseState):
                 text,
                 text.get_frect(center=rect.center),
             )
+
+    def open_settings(self):
+        self.app.states.push(
+            SettingsState(self.app)
+        )

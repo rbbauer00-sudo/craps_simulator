@@ -62,24 +62,25 @@ class CrapsApp:
         *,
         playing_state: PlayingState | None = None,
     ) -> None:
-        state = playing_state or self.states.current
-
-        if state is None:
-            raise RuntimeError("No active game.")
-
-        if state.is_animating:
+        if (
+            playing_state is not None
+            and playing_state.is_animating
+        ):
             raise RuntimeError(
                 "Cannot change animation settings "
                 "during an animation."
             )
 
         self.animation_settings = settings
-        state.wager_animator.settings = settings
+
+        if playing_state is not None:
+            playing_state.wager_animator.settings = settings
 
     def new_game(
         self,
         name: str = "Player 0",
         bankroll: int = 1500,
+        settings: GameSettings | None = None,
     ) -> None:
         if bankroll <= 0:
             raise ValueError(
@@ -87,7 +88,7 @@ class CrapsApp:
             )
 
         self.engine = GameEngine(
-            settings=self.engine.settings,
+            settings=settings or self.engine.settings,
         )
 
         self.engine.add_player(

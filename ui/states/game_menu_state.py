@@ -27,10 +27,7 @@ class GameMenuState(BaseState):
 
     @property
     def can_start_new_game(self) -> bool:
-        return (
-            self.playing is not None
-            and not self.playing.is_animating
-        )
+        return self.playing is not None
 
     def resume_game(self):
         self.app.states.pop()

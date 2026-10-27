@@ -2,14 +2,18 @@
 import pygame as pg
 
 from .base_state import BaseState
+from engine import GameSettings
+from .table_rules_state import TableRulesState
 
 
 class NewGameState(BaseState):
     NAME_RECT = pg.FRect(440, 285, 400, 55)
     BANKROLL_RECT = pg.FRect(440, 385, 400, 55)
 
-    START_BUTTON = pg.FRect(650, 510, 190, 60)
-    BACK_BUTTON = pg.FRect(440, 510, 190, 60)
+    START_BUTTON = pg.FRect(650, 560, 190, 60)
+    BACK_BUTTON = pg.FRect(440, 560, 190, 60)
+
+    RULES_BUTTON = pg.FRect(440, 455, 400, 45)
 
     def __init__(self, app):
         super().__init__(app)
@@ -17,6 +21,7 @@ class NewGameState(BaseState):
         self.name = "Player 0"
         self.bankroll_text = "1500"
         self.active_field = None
+        self.game_settings = GameSettings()
 
         self.font = pg.font.SysFont(None, 28)
         self.title_font = pg.font.SysFont(
@@ -38,6 +43,7 @@ class NewGameState(BaseState):
         self.app.new_game(
             name=self.name.strip() or "Player 0",
             bankroll=bankroll,
+            settings=self.game_settings,
         )
 
     def go_back(self):
@@ -53,6 +59,11 @@ class NewGameState(BaseState):
 
             elif self.BANKROLL_RECT.collidepoint(event.pos):
                 self.active_field = "bankroll"
+
+            elif self.RULES_BUTTON.collidepoint(event.pos):
+                self.app.states.push(
+                    TableRulesState(self.app, self)
+                )
 
             elif self.START_BUTTON.collidepoint(event.pos):
                 self.start_game()
@@ -135,6 +146,26 @@ class NewGameState(BaseState):
             ),
         )
 
+        pg.draw.rect(
+            screen,
+            (65, 95, 125),
+            self.RULES_BUTTON,
+            border_radius=8,
+        )
+
+        rules_text = self.font.render(
+            "TABLE RULES",
+            True,
+            (245, 245, 245),
+        )
+
+        screen.blit(
+            rules_text,
+            rules_text.get_frect(
+                center=self.RULES_BUTTON.center,
+            ),
+        )
+
         for label, rect, value, field in fields:
             label_surface = self.font.render(
                 label,
@@ -203,6 +234,6 @@ class NewGameState(BaseState):
             screen.blit(
                 error_text,
                 error_text.get_frect(
-                    center=(640, 475)
+                    center=(640, 530)
                 ),
             )

@@ -18,5 +18,5 @@ dev = ["pytest>=9"]
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 python_files = ["test_*.py"]
-addopts = "-x -v --tb=short"
+addopts = "-x --tb=short"
 pythonpath = ["."]
