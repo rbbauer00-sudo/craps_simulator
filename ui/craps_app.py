@@ -76,9 +76,23 @@ class CrapsApp:
         self.animation_settings = settings
         state.wager_animator.settings = settings
 
-    def new_game(self) -> None:
+    def new_game(
+        self,
+        name: str = "Player 0",
+        bankroll: int = 1500,
+    ) -> None:
+        if bankroll <= 0:
+            raise ValueError(
+                "Starting bankroll must be positive."
+            )
+
         self.engine = GameEngine(
             settings=self.engine.settings,
+        )
+
+        self.engine.add_player(
+            name=name,
+            bankroll=bankroll,
         )
 
         self.states.reset(PlayingState(self))

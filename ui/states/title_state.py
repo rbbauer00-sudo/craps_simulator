@@ -2,6 +2,7 @@
 import pygame as pg
 
 from .base_state import BaseState
+from .new_game_state import NewGameState
 
 
 class TitleState(BaseState):
@@ -22,7 +23,9 @@ class TitleState(BaseState):
         )
 
     def start_game(self):
-        self.app.new_game()
+        self.app.states.push(
+            NewGameState(self.app)
+        )
 
     def handle_event(self, event):
         if event.type == pg.KEYDOWN:
