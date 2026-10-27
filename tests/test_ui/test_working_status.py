@@ -20,7 +20,7 @@ def test_place_bet_on_off(ui_app):
     select_chip(state, 25)
     click(
         state,
-        state.betting_areas[WagerType.PLACE_BET].center,
+        state.get_betting_area("PLACE 6").rect.center
     )
     run_until_idle(state)
 
@@ -90,7 +90,7 @@ def test_pass_line_cannot_be_turned_off(ui_app, capsys):
     select_chip(state, 25)
     click(
         state,
-        state.betting_areas[WagerType.PASS_LINE].center,
+        state.get_betting_area("PASS LINE").rect.center,
     )
     run_until_idle(state)
 

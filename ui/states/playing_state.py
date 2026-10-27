@@ -7,7 +7,7 @@ from engine import GameRollResult, Wager, defs, WagerDefinition, WagerType, Game
 from ui.game_elements import DiceSprite, PuckSprite, WagerSprite, PlayerSprite, ChipSprite, VigSprite
 from ui.animations.wager_animation_controller import WagerAnimationController
 from ui.animations.animation_settings import AnimationMode
-from ui.input import CursorTool
+from ui.input import CursorTool, BettingArea
 
 from typing import TYPE_CHECKING
 if TYPE_CHECKING:
@@ -78,13 +78,6 @@ class PlayingState(BaseState):
         10: (720, 190),
     }
 
-    BETTING_DEFINITIONS = {
-        WagerType.PASS_LINE: (defs.PASS_LINE, None),
-        WagerType.DONT_PASS: (defs.DONT_PASS, None),
-        WagerType.COME: (defs.COME, None),
-        WagerType.PLACE_BET: (defs.PLACE_BET, 6),
-        WagerType.LAY_BET: (defs.LAY_BET, 4),
-    }
 
     def __init__(self, app: CrapsApp):
         super().__init__(app)
@@ -115,18 +108,59 @@ class PlayingState(BaseState):
         }
 
         # Game elements
-        self.betting_areas = {
-            WagerType.PASS_LINE: pg.FRect(390, 505, 120, 70),
-            WagerType.DONT_PASS: pg.FRect(540, 505, 120, 70),
-            WagerType.COME: pg.FRect(225, 215, 130, 70),
-            WagerType.PLACE_BET: pg.FRect(350, 300, 120, 70),
-            WagerType.LAY_BET: pg.FRect(110, 340, 120, 70),
-        }
+        self.areas = [
+            BettingArea(
+                "PASS LINE",
+                pg.FRect(390, 505, 120, 70),
+                defs.PASS_LINE,
+            ),
+            BettingArea(
+                "DON'T PASS",
+                pg.FRect(540, 505, 120, 70),
+                defs.DONT_PASS,
+            ),
+            BettingArea(
+                "COME",
+                pg.FRect(225, 215, 130, 70),
+                defs.COME,
+            ),
+            BettingArea(
+                "PLACE 6",
+                pg.FRect(350, 300, 120, 70),
+                defs.PLACE_BET,
+                target=6,
+            ),
+            BettingArea(
+                "LAY 4",
+                pg.FRect(110, 340, 120, 70),
+                defs.LAY_BET,
+                target=4,
+            ),
+            BettingArea(
+                "PASS ODDS",
+                pg.FRect(390, 425, 120, 60),
+                defs.LINE_ODDS,
+                parent_type=WagerType.PASS_LINE,
+            ),
+            BettingArea(
+                "DP ODDS",
+                pg.FRect(680, 505, 110, 70),
+                defs.LAY_ODDS,
+                parent_type=WagerType.DONT_PASS,
+            ),
+        ]
 
-        self.pass_odds_area = pg.FRect(
-            390, 425, 120, 60
-        )
-
+        # Six Come odds areas.
+        for number, (x, y) in self.COME_POSITIONS.items():
+            self.areas.append(
+                BettingArea(
+                    f"COME {number} ODDS",
+                    pg.FRect(x - 45, y - 95, 90, 45),
+                    defs.LINE_ODDS,
+                    parent_type=WagerType.COME,
+                    parent_target=number,
+                )
+            )
 
 
         self.dice_sprite = DiceSprite(
@@ -318,10 +352,7 @@ class PlayingState(BaseState):
                     event.button == 1
                     and self.selected_tool is CursorTool.CHIP
                 ):
-                    if self.pass_odds_area.collidepoint(event.pos):
-                        self.handle_pass_odds_click()
-                    else:
-                        self.handle_table_click(event.pos)
+                    self.handle_table_click(event.pos)
 
 
                         
@@ -341,36 +372,52 @@ class PlayingState(BaseState):
                         self.roll()
 
 
+
     def handle_table_click(
         self,
         position: tuple[int, int],
     ) -> None:
-        for wager_type, rect in self.betting_areas.items():
-            if not rect.collidepoint(position):
+        for area in self.areas:
+            if not area.rect.collidepoint(position):
                 continue
 
-            definition, target = self.BETTING_DEFINITIONS[
-                wager_type
-            ]
+            parent = self.parent_for_area(area)
 
-            existing = self.engine.get_wager(
-                self.player,
-                wager_type,
-                target=target,
-            )
+            if area.requires_parent:
+                if parent is None:
+                    print(
+                        f"Cannot place {area.name}: "
+                        "no eligible parent wager."
+                    )
+                    return
+
+                existing = self.engine.get_child_wager(parent)
+
+            else:
+                existing = self.engine.get_wager(
+                    self.player,
+                    area.definition.wager_type,
+                    target=area.target,
+                )
 
             try:
                 self.change_wager(
                     self.selected_chip,
                     wager=existing,
-                    definition=definition,
-                    target=target,
-                    position=rect.center,
+                    definition=area.definition,
+                    target=area.target,
+                    position=area.rect.center,
+                    parent=parent,
                 )
-            except (GameRuleViolation, InsufficientFundsError) as exc:
+
+            except (
+                GameRuleViolation,
+                InsufficientFundsError,
+            ) as exc:
                 print(f"Cannot change wager: {exc}")
 
             return
+
 
 
     def draw_selector(
@@ -454,7 +501,68 @@ class PlayingState(BaseState):
         return False
 
 
+    def handle_table_click(
+        self,
+        position: tuple[int, int],
+    ) -> None:
+        for area in self.areas:
+            if not area.rect.collidepoint(position):
+                continue
 
+            parent = self.parent_for_area(area)
+
+            if area.requires_parent:
+                if parent is None:
+                    print(
+                        f"Cannot place {area.name}: "
+                        "no eligible parent wager."
+                    )
+                    return
+
+                existing = self.engine.get_child_wager(parent)
+
+            else:
+                existing = self.engine.get_wager(
+                    self.player,
+                    area.definition.wager_type,
+                    target=area.target,
+                )
+
+            try:
+                self.change_wager(
+                    self.selected_chip,
+                    wager=existing,
+                    definition=area.definition,
+                    target=area.target,
+                    position=area.rect.center,
+                    parent=parent,
+                )
+
+            except (
+                GameRuleViolation,
+                InsufficientFundsError,
+            ) as exc:
+                if area.name == "PASS ODDS":
+                    print(f"Cannot change Pass Line odds: {exc}")
+                else:
+                    print(f"Cannot change wager: {exc}")
+
+            return
+
+
+
+    def parent_for_area(
+        self,
+        area: BettingArea,
+    ) -> Wager | None:
+        if not area.requires_parent:
+            return None
+
+        return self.engine.get_wager(
+            self.player,
+            area.parent_type,
+            target=area.parent_target,
+        )
 
     def apply_wager_tool(
         self,
@@ -593,32 +701,26 @@ class PlayingState(BaseState):
 
 
         # Draw Betting Areas
-        for wager_type, rect in self.betting_areas.items():
+        for area in self.areas:
             pg.draw.rect(
                 screen,
                 (190, 190, 190),
-                rect,
+                area.rect,
                 width=2,
                 border_radius=6,
             )
 
-            labels = {
-                WagerType.PLACE_BET: "PLACE 6",
-                WagerType.LAY_BET: "LAY 4",
-            }
-
-            label = self.app.font.render(
-                labels.get(
-                    wager_type,
-                    wager_type.name.replace("_", " "),
-                ),
+            label = self.app.small_font.render(
+                area.name,
                 True,
                 (230, 230, 230),
             )
 
             screen.blit(
                 label,
-                label.get_frect(center=rect.center),
+                label.get_frect(
+                    center=area.rect.center,
+                ),
             )
 
         # Draw puck position labels.
@@ -667,30 +769,6 @@ class PlayingState(BaseState):
 
         for sprite in self.vig_sprites.values():
             screen.blit(sprite.image, sprite.rect)
-
-
-    def handle_pass_odds_click(self) -> None:
-        parent = self.engine.get_wager(
-            self.player,
-            WagerType.PASS_LINE,
-        )
-
-        if parent is None:
-            print("Place a Pass Line wager first.")
-            return
-
-        existing = self.engine.get_child_wager(parent)
-
-        try:
-            self.change_wager(
-                self.selected_chip,
-                wager=existing,
-                definition=defs.LINE_ODDS,
-                parent=parent,
-                position=self.pass_odds_area.center,
-            )
-        except (GameRuleViolation, InsufficientFundsError) as exc:
-            print(f"Cannot change Pass Line odds: {exc}")       
 
 
     def change_wager(
@@ -773,3 +851,10 @@ class PlayingState(BaseState):
             vig_change,
         )
 
+
+    def get_betting_area(self, name: str) -> BettingArea:
+        for area in self.areas:
+            if area.name == name:
+                return area
+
+        raise KeyError(f"Unknown betting area: {name}")

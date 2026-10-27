@@ -24,6 +24,7 @@ class CrapsApp:
         pg.display.set_caption("Craps Simulator")
         self.clock = pg.time.Clock()
         self.font = pg.font.SysFont(None, 28)
+        self.small_font = pg.font.SysFont(None, 16)
         self.running = False
 
         # Engine integration can be added when roll controls are built.

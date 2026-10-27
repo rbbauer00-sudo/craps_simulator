@@ -32,3 +32,13 @@ def run_until_idle(state, max_frames=1000):
     raise AssertionError(
         "UI did not return to idle state."
     )
+
+def force_roll(state, total):
+    for char in str(total):
+        state.forced_roll_buffer.add(char)
+
+    state.roll()
+    run_until_idle(state)
+
+    assert state.current_roll is None
+    assert not state.is_animating

@@ -16,10 +16,10 @@ from ui.animations import AnimationMode
 def test_place_increase_decrease_and_remove(ui_app):
     state = ui_app.states.current
 
-    area = state.betting_areas[WagerType.PLACE_BET]
+    area = state.get_betting_area("PLACE 6")
 
     select_chip(state, 25)
-    click(state, area.center)
+    click(state, area.rect.center)
     run_until_idle(state)
 
     wager = state.engine.get_wager(
