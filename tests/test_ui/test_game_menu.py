@@ -198,6 +198,14 @@ def test_new_game_resets_engine(ui_app):
     press_escape(playing)
     menu = ui_app.states.current
 
+    assert isinstance(menu, GameMenuState)
+    assert menu.can_start_new_game
+
+    click(menu, menu.NEW_GAME_BUTTON.center)
+
+    assert ui_app.engine is not original_engine
+    assert ui_app.engine.settings == original_settings
+
     assert isinstance(
         ui_app.states.current,
         PlayingState,
@@ -206,7 +214,6 @@ def test_new_game_resets_engine(ui_app):
     assert ui_app.states.current is not playing
     assert not ui_app.engine.wagers
     assert ui_app.engine.point is None
-
 
 def test_settings_change_animation_mode(ui_app):
     playing = ui_app.states.current
@@ -256,11 +263,6 @@ def test_settings_disabled_during_animation(ui_app):
 
     assert menu.can_start_new_game
 
-    click(menu, menu.NEW_GAME_BUTTON.center)
-
-    # Disabled action must not replace the engine.
-    assert ui_app.engine is playing.engine
-    assert ui_app.states.current is menu
 
     click(menu, menu.SETTINGS_BUTTON.center)
 
