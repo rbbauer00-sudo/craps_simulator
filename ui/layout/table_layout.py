@@ -13,8 +13,8 @@ class TableLayout:
     CONTROLS_RECT = pg.FRect(20, 620, 1240, 160)
 
     # Main table: six columns, seven rows.
-    GRID_X = 105
-    GRID_Y = 125
+    GRID_X = 40
+    GRID_Y = 105
     CELL_W = 110
     CELL_H = 48
     GRID_DX = 125
@@ -69,6 +69,26 @@ class TableLayout:
     }
     PUCK_POSITIONS[None] = (850, 65)
 
+    @classmethod
+    def travel_position(
+        cls,
+        wager_type: WagerType,
+        target: int,
+    ) -> tuple[int, int]:
+        match wager_type:
+            case WagerType.COME:
+                positions = cls.COME_POSITIONS
+
+            case WagerType.DONT_COME:
+                positions = cls.DONT_COME_POSITIONS
+
+            case _:
+                raise ValueError(
+                    f"No travel position for {wager_type}"
+                )
+
+        return positions[target]
+
     CHIP_BUTTONS = {
         1: pg.FRect(301, 680, 80, 55),
         5: pg.FRect(400, 680, 85, 55),
@@ -101,20 +121,20 @@ class TableLayout:
                 ),
                 BettingArea(
                     f"DC {number} ODDS",
-                    cls.cell(column, 2),
+                    cls.cell(column, 3),
                     defs.LAY_ODDS,
                     parent_type=WagerType.DONT_COME,
                     parent_target=number,
                 ),
                 BettingArea(
                     f"PLACE {number}",
-                    cls.cell(column, 3),
+                    cls.cell(column, 4),
                     defs.PLACE_BET,
                     target=number,
                 ),
                 BettingArea(
                     f"LAY {number}",
-                    cls.cell(column, 4),
+                    cls.cell(column, 5),
                     defs.LAY_BET,
                     target=number,
                 ),
@@ -136,7 +156,7 @@ class TableLayout:
             areas.append(
                 BettingArea(
                     name,
-                    cls.cell(column, 5),
+                    cls.cell(column, 6),
                     definition,
                     parent_type=parent_type,
                 )
@@ -145,7 +165,7 @@ class TableLayout:
         areas.append(
             BettingArea(
                 "FIELD",
-                cls.cell(0, 6),
+                cls.cell(0, 7),
                 defs.FIELD,
             )
         )
