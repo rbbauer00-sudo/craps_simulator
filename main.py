@@ -7,7 +7,7 @@ def main():
     )
 
     animation_settings = AnimationSettings(
-        mode=AnimationMode.INSTANT,
+        mode=AnimationMode.FULL,
         speed=0.6,
     )
 

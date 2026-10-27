@@ -2,41 +2,72 @@
 import pygame as pg
 
 from engine import defs, WagerType
-from ui.input import BettingArea,CursorTool
+from ui.input import BettingArea, CursorTool
 
 
 class TableLayout:
+    BOX_NUMBERS = (4, 5, 6, 8, 9, 10)
 
+    TABLE_RECT = pg.FRect(20, 20, 940, 580)
+    SIDEBAR_RECT = pg.FRect(980, 20, 280, 580)
+    CONTROLS_RECT = pg.FRect(20, 620, 1240, 160)
+
+    # Main table: six columns, seven rows.
+    GRID_X = 105
+    GRID_Y = 125
+    CELL_W = 110
+    CELL_H = 48
+    GRID_DX = 125
+    GRID_DY = 60
+
+    # Sidebar: two columns, seven rows.
+    SIDE_X = 990
+    SIDE_Y = 125
+    SIDE_W = 125
+    SIDE_H = 48
+    SIDE_DX = 135
+    SIDE_DY = 65
+
+    # Game elements
+    DICE_POSITION = (815, 480)
+    DEALER_POSITION = (640, -50)
+    PLAYER_POSITION = (990, 40)
+    BONUS_PROGRESS_POSITION = (790, 225)
+
+    @classmethod
+    def cell(cls, column: int, row: int) -> pg.FRect:
+        return pg.FRect(
+            cls.GRID_X + column * cls.GRID_DX,
+            cls.GRID_Y + row * cls.GRID_DY,
+            cls.CELL_W,
+            cls.CELL_H,
+        )
+
+    @classmethod
+    def side_cell(cls, column: int, row: int) -> pg.FRect:
+        return pg.FRect(
+            cls.SIDE_X + column * cls.SIDE_DX,
+            cls.SIDE_Y + row * cls.SIDE_DY,
+            cls.SIDE_W,
+            cls.SIDE_H,
+        )
+
+    # Wager travel locations.
     COME_POSITIONS = {
-        4: (170, 190),
-        5: (280, 190),
-        6: (390, 190),
-        8: (500, 190),
-        9: (610, 190),
-        10: (720, 190),
+        number: (95 + index * 125, 189)
+        for index, number in enumerate(BOX_NUMBERS)
+    }
+
+    DONT_COME_POSITIONS = {
+        number: (95 + index * 125, 249)
+        for index, number in enumerate(BOX_NUMBERS)
     }
 
     PUCK_POSITIONS = {
-        4: (170, 65),
-        5: (280, 65),
-        6: (390, 65),
-        8: (500, 65),
-        9: (610, 65),
-        10: (720, 65),
-        None: (850, 65),
+        number: (95 + index * 125, 65)
+        for index, number in enumerate(BOX_NUMBERS)
     }
-
-    TOOL_BUTTONS = {
-        CursorTool.ON: pg.FRect(900, 680, 70, 55),
-        CursorTool.OFF: pg.FRect(980, 680, 70, 55),
-        CursorTool.BUY: pg.FRect(1060, 680, 85, 55),
-        CursorTool.PLACE: pg.FRect(1150, 680, 85, 55),
-    }
-
-    DICE_POSITION = (150, 500)
-    DEALER_POSITION = (640, -50)
-
-    PLAYER_POSITION = (1000, 40)
+    PUCK_POSITIONS[None] = (850, 65)
 
     CHIP_BUTTONS = {
         1: pg.FRect(301, 680, 80, 55),
@@ -47,67 +78,110 @@ class TableLayout:
         100: pg.FRect(780, 680, 85, 55),
     }
 
-    TABLE_RECT = pg.FRect(20, 20, 940, 580)
-    SIDEBAR_RECT = pg.FRect(980, 20, 280, 580)
-    CONTROLS_RECT = pg.FRect(20, 620, 1240, 160)
+    TOOL_BUTTONS = {
+        CursorTool.ON: pg.FRect(900, 680, 70, 55),
+        CursorTool.OFF: pg.FRect(980, 680, 70, 55),
+        CursorTool.BUY: pg.FRect(1060, 680, 85, 55),
+        CursorTool.PLACE: pg.FRect(1150, 680, 85, 55),
+    }
 
     @classmethod
     def create_betting_areas(cls) -> list[BettingArea]:
-        areas = [
-            BettingArea(
-                "PASS LINE",
-                pg.FRect(390, 505, 120, 70),
-                defs.PASS_LINE,
-            ),
-            BettingArea(
-                "DON'T PASS",
-                pg.FRect(540, 505, 120, 70),
-                defs.DONT_PASS,
-            ),
-            BettingArea(
-                "COME",
-                pg.FRect(225, 425, 130, 60),
-                defs.COME,
-            ),
-            BettingArea(
-                "PASS ODDS",
-                pg.FRect(390, 425, 120, 60),
-                defs.LINE_ODDS,
-                parent_type=WagerType.PASS_LINE,
-            ),
-            BettingArea(
-                "DP ODDS",
-                pg.FRect(680, 505, 110, 70),
-                defs.LAY_ODDS,
-                parent_type=WagerType.DONT_PASS,
-            ),
-        ]
+        areas = []
 
-        for number, (x, y) in cls.COME_POSITIONS.items():
-            areas.append(
+        # Number-specific bets.
+        for column, number in enumerate(cls.BOX_NUMBERS):
+            areas.extend([
                 BettingArea(
                     f"COME {number} ODDS",
-                    pg.FRect(x - 45, y - 95, 90, 45),
+                    cls.cell(column, 0),
                     defs.LINE_ODDS,
                     parent_type=WagerType.COME,
                     parent_target=number,
-                )
-            )
-
-        for number, (x, _) in cls.COME_POSITIONS.items():
-            areas.extend([
+                ),
+                BettingArea(
+                    f"DC {number} ODDS",
+                    cls.cell(column, 2),
+                    defs.LAY_ODDS,
+                    parent_type=WagerType.DONT_COME,
+                    parent_target=number,
+                ),
                 BettingArea(
                     f"PLACE {number}",
-                    pg.FRect(x - 45, 300, 90, 45),
+                    cls.cell(column, 3),
                     defs.PLACE_BET,
                     target=number,
                 ),
                 BettingArea(
                     f"LAY {number}",
-                    pg.FRect(x - 45, 365, 90, 45),
+                    cls.cell(column, 4),
                     defs.LAY_BET,
                     target=number,
                 ),
             ])
+
+        # Basic wagers.
+        basic_bets = (
+            ("PASS LINE", defs.PASS_LINE, None),
+            ("DON'T PASS", defs.DONT_PASS, None),
+            ("COME", defs.COME, None),
+            ("DON'T COME", defs.DONT_COME, None),
+            ("PASS ODDS", defs.LINE_ODDS, WagerType.PASS_LINE),
+            ("DP ODDS", defs.LAY_ODDS, WagerType.DONT_PASS),
+        )
+
+        for column, (name, definition, parent_type) in enumerate(
+            basic_bets
+        ):
+            areas.append(
+                BettingArea(
+                    name,
+                    cls.cell(column, 5),
+                    definition,
+                    parent_type=parent_type,
+                )
+            )
+
+        areas.append(
+            BettingArea(
+                "FIELD",
+                cls.cell(0, 6),
+                defs.FIELD,
+            )
+        )
+
+        # Bonus bets, hardways and propositions.
+        sidebar_bets = (
+            ("ATS SMALL", defs.ATS_SMALL),
+            ("ATS TALL", defs.ATS_TALL),
+            ("ATS ALL", defs.ATS_ALL),
+            ("FIRE", defs.FIRE_BET),
+            ("HARD 4", defs.HARDWAY),
+            ("HARD 6", defs.HARDWAY),
+            ("HARD 8", defs.HARDWAY),
+            ("HARD 10", defs.HARDWAY),
+            ("ANY SEVEN", defs.ANY_SEVEN),
+            ("ANY CRAPS", defs.ANY_CRAPS),
+            ("YO", defs.YO_LEVEN),
+            ("ACE DEUCE", defs.ACE_DEUCE),
+            ("DEUCE", defs.DEUCE),
+            ("MIDNIGHT", defs.MIDNIGHT),
+        )
+
+        for index, (name, definition) in enumerate(sidebar_bets):
+            target = (
+                int(name.split()[-1])
+                if name.startswith("HARD ")
+                else None
+            )
+
+            areas.append(
+                BettingArea(
+                    name,
+                    cls.side_cell(index % 2, index // 2),
+                    definition,
+                    target=target,
+                )
+            )
 
         return areas

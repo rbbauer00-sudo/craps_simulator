@@ -7,6 +7,7 @@ from engine import GameRollResult, Wager, defs, WagerDefinition, WagerType, Game
 from ui.game_elements import DiceSprite, PuckSprite, WagerSprite, PlayerSprite, ChipSprite, VigSprite
 from ui.animations.wager_animation_controller import WagerAnimationController
 from ui.animations.animation_settings import AnimationMode
+from ui.game_elements.bonus_progress_sprite import BonusProgressSprite
 from ui.input import CursorTool, BettingArea
 from ui.layout.table_layout import TableLayout
 
@@ -110,6 +111,12 @@ class PlayingState(BaseState):
         self.player_sprite = PlayerSprite(
             self.player,
             self.layout.PLAYER_POSITION,
+            self.visible_sprites,
+        )
+
+        self.bonus_progress_sprite = BonusProgressSprite(
+            self.engine,
+            self.layout.BONUS_PROGRESS_POSITION,
             self.visible_sprites,
         )
 
