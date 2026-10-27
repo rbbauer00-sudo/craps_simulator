@@ -1,16 +1,97 @@
-"""Future title menu; not wired into the app yet."""
+
 import pygame as pg
+
 from .base_state import BaseState
 
 
 class TitleState(BaseState):
-    def handle_event(self, event: pg.event.Event):
+    TITLE_POSITION = (640, 190)
+
+    NEW_GAME_BUTTON = pg.FRect(440, 320, 400, 70)
+    SETTINGS_BUTTON = pg.FRect(440, 420, 400, 70)
+    QUIT_BUTTON = pg.FRect(440, 520, 400, 70)
+
+    def __init__(self, app):
+        super().__init__(app)
+
+        self.title_font = pg.font.SysFont(
+            None, 72, bold=True
+        )
+        self.button_font = pg.font.SysFont(
+            None, 32
+        )
+
+    def start_game(self):
+        self.app.new_game()
+
+    def handle_event(self, event):
+        if event.type == pg.KEYDOWN:
+            if event.key == pg.K_RETURN:
+                self.start_game()
+            return
+
+        if event.type != pg.MOUSEBUTTONDOWN:
+            return
+
+        if event.button != 1:
+            return
+
+        if self.NEW_GAME_BUTTON.collidepoint(event.pos):
+            self.start_game()
+
+        elif self.QUIT_BUTTON.collidepoint(event.pos):
+            self.app.running = False
+
+    def update(self, dt):
         pass
 
-    def update(self, dt: float):
-        pass
+    def draw(self, screen):
+        screen.fill((25, 40, 35))
 
-    def draw(self, screen: pg.Surface):
-        screen.fill((25, 35, 40))
-        text = self.app.font.render("Craps Simulator - Title (placeholder)", True, (255, 255, 255))
-        screen.blit(text, text.get_rect(center=screen.get_rect().center))
+        title = self.title_font.render(
+            "CRAPS SIMULATOR",
+            True,
+            (245, 245, 245),
+        )
+
+        screen.blit(
+            title,
+            title.get_frect(
+                center=self.TITLE_POSITION
+            ),
+        )
+
+        buttons = (
+            (self.NEW_GAME_BUTTON, "NEW GAME", True),
+            (self.SETTINGS_BUTTON, "SETTINGS", False),
+            (self.QUIT_BUTTON, "QUIT", True),
+        )
+
+        for rect, label, enabled in buttons:
+            pg.draw.rect(
+                screen,
+                (45, 105, 75)
+                if enabled else (55, 55, 55),
+                rect,
+                border_radius=10,
+            )
+
+            pg.draw.rect(
+                screen,
+                (150, 150, 150),
+                rect,
+                width=2,
+                border_radius=10,
+            )
+
+            text = self.button_font.render(
+                label,
+                True,
+                (245, 245, 245)
+                if enabled else (125, 125, 125),
+            )
+
+            screen.blit(
+                text,
+                text.get_frect(center=rect.center),
+            )

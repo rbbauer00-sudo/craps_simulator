@@ -181,3 +181,118 @@ def test_menu_freezes_active_animation(ui_app):
     assert not playing.is_animating
     assert playing.current_roll is None
 
+
+
+from engine import WagerType
+from ui.animations import AnimationMode
+from ui.states.playing_state import PlayingState
+from ui.states.settings_state import SettingsState
+
+
+def test_new_game_resets_engine(ui_app):
+    playing = ui_app.states.current
+
+    original_engine = ui_app.engine
+    original_settings = original_engine.settings
+
+    press_escape(playing)
+    menu = ui_app.states.current
+
+    click(menu, menu.NEW_GAME_BUTTON.center)
+
+    assert ui_app.engine is not original_engine
+    assert ui_app.engine.settings == original_settings
+
+    assert isinstance(
+        ui_app.states.current,
+        PlayingState,
+    )
+
+    assert ui_app.states.current is not playing
+    assert not ui_app.engine.wagers
+    assert ui_app.engine.point is None
+
+
+def test_settings_change_animation_mode(ui_app):
+    playing = ui_app.states.current
+
+    press_escape(playing)
+    menu = ui_app.states.current
+
+    click(menu, menu.SETTINGS_BUTTON.center)
+
+    settings = ui_app.states.current
+    assert isinstance(settings, SettingsState)
+
+    click(
+        settings,
+        settings.mode_buttons[AnimationMode.FULL].center,
+    )
+
+    assert (
+        ui_app.animation_settings.mode
+        is AnimationMode.FULL
+    )
+    assert (
+        playing.wager_animator.settings.mode
+        is AnimationMode.FULL
+    )
+
+    click(settings, settings.BACK_BUTTON.center)
+
+    assert ui_app.states.current is menu
+
+
+def test_settings_disabled_during_animation(ui_app):
+    playing = ui_app.states.current
+
+    # INSTANT completes synchronously, so switch first.
+    ui_app.set_animation_settings(
+        ui_app.animation_settings.__class__(
+            mode=AnimationMode.FULL,
+        )
+    )
+
+    playing.roll()
+    assert playing.is_animating
+
+    press_escape(playing)
+    menu = ui_app.states.current
+
+    assert not menu.can_start_new_game
+
+    click(menu, menu.NEW_GAME_BUTTON.center)
+
+    # Disabled action must not replace the engine.
+    assert ui_app.engine is playing.engine
+    assert ui_app.states.current is menu
+
+    click(menu, menu.SETTINGS_BUTTON.center)
+
+    settings = ui_app.states.current
+    assert isinstance(settings, SettingsState)
+    assert not settings.can_change_animation
+
+    click(
+        settings,
+        settings.mode_buttons[
+            AnimationMode.INSTANT
+        ].center,
+    )
+
+    # Changing mode must be rejected.
+    assert (
+        ui_app.animation_settings.mode
+        is AnimationMode.FULL
+    )
+
+    # Return to the menu and resume the same roll.
+    click(settings, settings.BACK_BUTTON.center)
+    assert ui_app.states.current is menu
+
+    click(menu, menu.RESUME_BUTTON.center)
+
+    assert ui_app.states.current is playing
+    assert playing.is_animating
+
+

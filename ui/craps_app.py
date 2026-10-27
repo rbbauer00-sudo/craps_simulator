@@ -5,6 +5,8 @@ from engine import GameEngine, GameSettings
 from ui.state_stack import StateStack
 from ui.states.playing_state import PlayingState
 from ui.animations import AnimationSettings
+from ui.states.title_state import TitleState
+
 
 class CrapsApp:
     WIDTH = 1280
@@ -15,6 +17,7 @@ class CrapsApp:
         self,
         game_settings: GameSettings | None = None,
         animation_settings: AnimationSettings | None = None,
+        start_on_title: bool = False,
     ):
         pg.init()
 
@@ -30,7 +33,10 @@ class CrapsApp:
         # Engine integration can be added when roll controls are built.
         self.engine = GameEngine(settings=game_settings)
         self.states = StateStack()
-        self.states.push(PlayingState(self))
+        if start_on_title:
+            self.states.push(TitleState(self))
+        else:
+            self.states.push(PlayingState(self))
 
     def run(self):
         self.running = True
@@ -53,13 +59,26 @@ class CrapsApp:
     def set_animation_settings(
         self,
         settings: AnimationSettings,
+        *,
+        playing_state: PlayingState | None = None,
     ) -> None:
-        state = self.states.current
+        state = playing_state or self.states.current
+
+        if state is None:
+            raise RuntimeError("No active game.")
 
         if state.is_animating:
             raise RuntimeError(
-                "Cannot change animation settings during an animation."
+                "Cannot change animation settings "
+                "during an animation."
             )
 
         self.animation_settings = settings
         state.wager_animator.settings = settings
+
+    def new_game(self) -> None:
+        self.engine = GameEngine(
+            settings=self.engine.settings,
+        )
+
+        self.states.reset(PlayingState(self))

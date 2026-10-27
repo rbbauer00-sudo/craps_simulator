@@ -246,7 +246,7 @@ class PlayingState(BaseState):
   
     def handle_event(self, event: pg.event.Event) -> None:
         if event.type == pg.KEYDOWN and event.key == pg.K_ESCAPE:
-            self.app.states.push(GameMenuState(self.app))
+            self.app.states.push(GameMenuState(self.app, self))
             return
 
         if self.is_animating:

@@ -14,6 +14,7 @@ def main():
     app = CrapsApp(
         game_settings=game_settings,
         animation_settings=animation_settings,
+        start_on_title=True,
     )
 
     app.run()
