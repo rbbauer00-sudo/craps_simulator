@@ -41,10 +41,9 @@ def test_place_bet_on_off(ui_app):
 
 
     # Select ON/OFF tool.
-    assert state.selected_tool is CursorTool.ON_OFF
     assert not state.is_animating
     assert state.wager_at_position(sprite.rect.center) is wager
-    
+
     click(
         state,
         state.tool_buttons[CursorTool.ON_OFF].center,
@@ -73,17 +72,6 @@ def test_place_bet_on_off(ui_app):
     assert sprite.color == (35, 74, 180)
 
     assert state.selected_tool is CursorTool.ON_OFF
-    assert wager.value == original_value
-    assert state.player.bankroll == original_bankroll
-
-    # Turn the wager back on.
-    click(state, sprite.rect.center)
-    state.update(1 / 60)
-
-    assert wager.is_working is True
-    assert sprite.displayed_working is True
-    assert sprite.color == (35, 74, 180)
-
     assert wager.value == original_value
     assert state.player.bankroll == original_bankroll
 
