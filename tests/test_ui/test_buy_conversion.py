@@ -17,6 +17,8 @@ from .helpers import click, select_chip, run_until_idle
 def test_buy_place_conversion(ui_app_upfront):
     state = ui_app_upfront.states.current
 
+    state.app.working_preferences.place_on_comeout = True
+
     select_chip(state, 100)
     click(
         state,

@@ -94,6 +94,8 @@ class PlayingState(BaseState):
         self.chip_buttons = self.layout.CHIP_BUTTONS
         self.tool_buttons = self.layout.TOOL_BUTTONS
 
+        self.manual_working_overrides: set[Wager] = set()
+
         self.hop_tray = HopTray(self.engine)
 
         self.lammer_font = pg.font.SysFont(
@@ -217,6 +219,8 @@ class PlayingState(BaseState):
                 continue
 
             self.take_down_wager(wager)
+
+        self.apply_working_defaults()
 
         self.current_roll = None
         self.roll_phase = RollPhase.READY
@@ -553,10 +557,7 @@ class PlayingState(BaseState):
 
             case CursorTool.ON_OFF:
                 if button == 1:
-                    self.engine.set_wager_working_status(
-                        wager,
-                        not wager.is_working,
-                    )
+                    self.set_manual_working_status(wager)
 
             case CursorTool.BUY:
                 self.engine.set_wager_buy_status(wager, True)
@@ -809,6 +810,9 @@ class PlayingState(BaseState):
             )
 
             self.engine.place_wager(wager)
+
+            self.apply_working_defaults()
+
             self.wager_animator.place(wager, position)
             return
 
@@ -863,3 +867,42 @@ class PlayingState(BaseState):
                 return area
 
         raise KeyError(f"Unknown betting area: {name}")
+
+
+    def set_manual_working_status(self, wager: Wager) -> None:
+        self.engine.set_wager_working_status(
+            wager,
+            not wager.is_working,
+        )
+
+        self.manual_working_overrides.add(wager)
+
+
+    def apply_working_defaults(self) -> None:
+        preferences = self.app.working_preferences
+        active_wagers = set(self.engine.wagers)
+
+        # Discard overrides belonging to resolved wagers.
+        self.manual_working_overrides.intersection_update(
+            active_wagers
+        )
+
+        for wager in self.engine.wagers:
+            if wager in self.manual_working_overrides:
+                continue
+
+            desired = preferences.default_status(
+                wager.definition.wager_type,
+                self.engine.point,
+            )
+
+            if desired is None:
+                continue
+
+            if wager.is_working == desired:
+                continue
+
+            self.engine.set_wager_working_status(
+                wager,
+                desired,
+            )

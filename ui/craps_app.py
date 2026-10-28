@@ -6,7 +6,7 @@ from ui.state_stack import StateStack
 from ui.states.playing_state import PlayingState
 from ui.animations import AnimationSettings
 from ui.states.title_state import TitleState
-from ui.settings import WagerPreferences
+from ui.settings import WagerPreferences, WorkingPreferences
 
 
 class CrapsApp:
@@ -24,6 +24,7 @@ class CrapsApp:
 
         self.animation_settings = animation_settings or AnimationSettings()
         self.wager_preferences = WagerPreferences()
+        self.working_preferences = WorkingPreferences()
     
         self.screen = pg.display.set_mode((self.WIDTH, self.HEIGHT))
         pg.display.set_caption("Craps Simulator")
