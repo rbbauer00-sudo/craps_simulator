@@ -1,6 +1,7 @@
 
 import pygame as pg
 from .wager_behavior_state import WagerBehaviorState
+from .working_status_state import WorkingStatusState
 
 from .base_state import BaseState
 
@@ -42,12 +43,17 @@ class PlayerPreferencesState(BaseState):
         if self.WAGER_BEHAVIOR_BUTTON.collidepoint(event.pos):
             self.open_wager_behavior()
 
+        
+        elif self.WORKING_STATUS_BUTTON.collidepoint(event.pos):
+            self.open_working_status()
+
         elif self.BACK_BUTTON.collidepoint(event.pos):
             self.go_back()
 
 
     def update(self, dt):
         pass
+
 
     def draw(self, screen):
         shade = pg.Surface(
@@ -96,7 +102,7 @@ class PlayerPreferencesState(BaseState):
             (
                 self.WORKING_STATUS_BUTTON,
                 "WORKING STATUS",
-                False,
+                True,
             ),
         ):
             pg.draw.rect(
@@ -142,6 +148,14 @@ class PlayerPreferencesState(BaseState):
     def open_wager_behavior(self):
         self.app.states.push(
             WagerBehaviorState(
+                self.app,
+                self.playing,
+            )
+        )
+
+    def open_working_status(self):
+        self.app.states.push(
+            WorkingStatusState(
                 self.app,
                 self.playing,
             )

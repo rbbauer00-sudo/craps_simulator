@@ -8,6 +8,7 @@ from ui.states.player_preferences_state import (
 )
 from .helpers import click
 from ui.states.wager_behavior_state import WagerBehaviorState
+from ui.states.working_status_state import WorkingStatusState
 
 
 def test_settings_opens_animation(ui_app):
@@ -146,10 +147,23 @@ def test_player_preferences_preserves_game(ui_app):
     assert app.states.current is preferences
  
 
+    # Working Status should open its settings screen.
     click(
         preferences,
         preferences.WORKING_STATUS_BUTTON.center,
     )
+
+    working = app.states.current
+
+    assert isinstance(working, WorkingStatusState)
+    assert working.playing is playing
+
+    # Return to Player Preferences.
+    click(
+        working,
+        working.BACK_BUTTON.center,
+    )
+
     assert app.states.current is preferences
 
     click(
