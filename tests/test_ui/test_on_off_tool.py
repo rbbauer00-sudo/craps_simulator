@@ -42,6 +42,7 @@ def test_on_off_selector_exists(ui_app):
 
 def test_on_off_toggles_wager(ui_app):
     playing = ui_app.states.current
+    playing.app.working_preferences.place_on_comeout = True
     wager = place_six(playing)
 
     click(
@@ -71,6 +72,7 @@ def test_on_off_toggles_wager(ui_app):
 
 def test_right_click_does_not_toggle(ui_app):
     playing = ui_app.states.current
+    playing.app.working_preferences.place_on_comeout = True
     wager = place_six(playing)
 
     click(

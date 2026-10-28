@@ -83,6 +83,11 @@ def test_buy_place_conversion(ui_app_upfront):
 def test_auto_buy_and_threshold(ui_app):
     state = ui_app.states.current
 
+    # Keep Place/Buy wagers working during comeout.
+    # This test is concerned with AUTO_BUY behavior,
+    # not automatic working-status transitions.
+    state.app.working_preferences.place_on_comeout = True
+
     assert (
         state.engine.settings.buy_vig_setting
         is VigSetting.AUTO_BUY

@@ -15,6 +15,7 @@ from .helpers import click, select_chip, run_until_idle
 )
 def test_place_bet_on_off(ui_app):
     state = ui_app.states.current
+    state.app.working_preferences.place_on_comeout = True
 
     # Place a $25 Place 6 wager.
     select_chip(state, 25)
