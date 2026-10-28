@@ -1,82 +1,56 @@
 
 import pygame as pg
 
-from ui.animations import (
-    AnimationMode,
-    AnimationSettings,
-)
-
 from .base_state import BaseState
+from .animation_settings_state import AnimationSettingsState
 
 
 class SettingsState(BaseState):
     transparent = True
 
     PANEL = pg.FRect(440, 150, 400, 500)
-    BACK_BUTTON = pg.FRect(490, 545, 300, 60)
 
-    MODES = tuple(AnimationMode)
+    ANIMATION_BUTTON = pg.FRect(490, 255, 300, 65)
+    BACK_BUTTON = pg.FRect(490, 545, 300, 60)
 
     def __init__(self, app, playing_state=None):
         super().__init__(app)
 
         self.playing = playing_state
 
-        self.mode_buttons = {
-            mode: pg.FRect(
-                490,
-                245 + index * 70,
-                300,
-                55,
-            )
-            for index, mode in enumerate(self.MODES)
-        }
-
         self.title_font = pg.font.SysFont(
-            None, 38, bold=True
+            None, 40, bold=True
         )
-        self.font = pg.font.SysFont(None, 27)
-        self.small_font = pg.font.SysFont(None, 19)
+        self.font = pg.font.SysFont(None, 28)
 
-    @property
-    def can_change_animation(self) -> bool:
-        return (
-            self.playing is None
-            or not self.playing.is_animating
+    def open_animation_settings(self):
+        self.app.states.push(
+            AnimationSettingsState(
+                self.app,
+                self.playing,
+            )
         )
 
-    def select_mode(self, mode: AnimationMode):
-        if not self.can_change_animation:
-            return
-
-        self.app.set_animation_settings(
-            AnimationSettings(
-                mode=mode,
-                speed=self.app.animation_settings.speed,
-            ),
-            playing_state=self.playing,
-        )
+    def go_back(self):
+        self.app.states.pop()
 
     def handle_event(self, event):
         if event.type == pg.KEYDOWN:
             if event.key == pg.K_ESCAPE:
-                self.app.states.pop()
+                self.go_back()
             return
 
-        if event.type != pg.MOUSEBUTTONDOWN:
+        if (
+            event.type != pg.MOUSEBUTTONDOWN
+            or event.button != 1
+        ):
             return
 
-        if event.button != 1:
-            return
+        if self.ANIMATION_BUTTON.collidepoint(event.pos):
+            self.open_animation_settings()
 
-        if self.BACK_BUTTON.collidepoint(event.pos):
-            self.app.states.pop()
-            return
-
-        for mode, rect in self.mode_buttons.items():
-            if rect.collidepoint(event.pos):
-                self.select_mode(mode)
-                return
+        elif self.BACK_BUTTON.collidepoint(event.pos):
+            self.go_back()
 
     def update(self, dt):
         pass
@@ -105,7 +79,7 @@ class SettingsState(BaseState):
         )
 
         title = self.title_font.render(
-            "ANIMATION SETTINGS",
+            "SETTINGS",
             True,
             (245, 245, 245),
         )
@@ -116,49 +90,24 @@ class SettingsState(BaseState):
             ),
         )
 
-        for mode, rect in self.mode_buttons.items():
-            selected = (
-                self.app.animation_settings.mode is mode
-            )
+        pg.draw.rect(
+            screen,
+            (65, 95, 125),
+            self.ANIMATION_BUTTON,
+            border_radius=8,
+        )
 
-            enabled = self.can_change_animation
-
-            color = (
-                (55, 115, 80) if selected
-                else (65, 95, 125)
-            ) if enabled else (65, 65, 65)
-
-            pg.draw.rect(
-                screen,
-                color,
-                rect,
-                border_radius=8,
-            )
-
-            label = self.font.render(
-                mode.name,
-                True,
-                (245, 245, 245) if enabled
-                else (145, 145, 145),
-            )
-
-            screen.blit(
-                label,
-                label.get_frect(center=rect.center),
-            )
-
-        if not self.can_change_animation:
-            message = self.small_font.render(
-                "Finish the current animation to change modes",
-                True,
-                (220, 180, 120),
-            )
-            screen.blit(
-                message,
-                message.get_frect(
-                    center=(self.PANEL.centerx, 525)
-                ),
-            )
+        label = self.font.render(
+            "ANIMATION",
+            True,
+            (245, 245, 245),
+        )
+        screen.blit(
+            label,
+            label.get_frect(
+                center=self.ANIMATION_BUTTON.center
+            ),
+        )
 
         pg.draw.rect(
             screen,
@@ -167,12 +116,15 @@ class SettingsState(BaseState):
             border_radius=8,
         )
 
-        label = self.font.render(
+        back = self.font.render(
             "BACK",
             True,
             (245, 245, 245),
         )
         screen.blit(
-            label,
-            label.get_frect(center=self.BACK_BUTTON.center),
+            back,
+            back.get_frect(
+                center=self.BACK_BUTTON.center
+            ),
         )
+``
