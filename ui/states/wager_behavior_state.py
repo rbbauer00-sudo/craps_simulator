@@ -21,10 +21,10 @@ class WagerBehaviorState(BaseState):
 
     BACK_BUTTON = pg.FRect(490, 665, 300, 55)
 
-    def __init__(self, app, new_game_state):
+    def __init__(self, app, playing_state=None):
         super().__init__(app)
 
-        self.setup = new_game_state
+        self.playing = playing_state
 
         self.title_font = pg.font.SysFont(
             None, 44, bold=True
@@ -47,20 +47,34 @@ class WagerBehaviorState(BaseState):
                 55,
             )
 
+
+    @property
+    def can_change_behavior(self) -> bool:
+        return (
+            self.playing is None
+            or not self.playing.is_animating
+        )
+
+
     def take_down(self, wager_type):
-        return self.setup.wager_preferences.take_down_on_win.get(
+        return self.app.wager_preferences.take_down_on_win.get(
             wager_type,
             False,
         )
+        
 
     def toggle(self, wager_type):
+        if not self.can_change_behavior:
+            return
+
         preferences = (
-            self.setup.wager_preferences.take_down_on_win
+            self.app.wager_preferences.take_down_on_win
         )
 
         preferences[wager_type] = not self.take_down(
             wager_type
         )
+
 
     def handle_event(self, event):
         if event.type == pg.KEYDOWN:
@@ -112,27 +126,38 @@ class WagerBehaviorState(BaseState):
 
         for wager_type, label in self.WAGER_TYPES:
             rect = self.buttons[wager_type]
-
             take_down = self.take_down(wager_type)
+
+            enabled = self.can_change_behavior
+
+            color = (
+                (105, 75, 45)
+                if take_down
+                else (45, 105, 75)
+            ) if enabled else (65, 65, 65)
 
             pg.draw.rect(
                 screen,
-                (105, 75, 45)
-                if take_down else (45, 105, 75),
+                color,
                 rect,
                 border_radius=8,
+            )
+
+            foreground = (
+                (245, 245, 245)
+                if enabled else (145, 145, 145)
             )
 
             name = self.font.render(
                 label,
                 True,
-                (245, 245, 245),
+                foreground,
             )
 
             behavior = self.small_font.render(
                 "TAKE DOWN" if take_down else "STAY UP",
                 True,
-                (245, 245, 245),
+                foreground,
             )
 
             screen.blit(

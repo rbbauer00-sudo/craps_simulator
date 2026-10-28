@@ -4,10 +4,9 @@ import pygame as pg
 from ui.states.game_menu_state import GameMenuState
 from ui.states.new_game_state import NewGameState
 from .helpers import click
-#from engine import WagerType
 from ui.animations import AnimationMode, AnimationSettings
 from ui.states.playing_state import PlayingState
-from ui.states.settings_state import SettingsState
+from ui.states.settings_state import SettingsState, AnimationSettingsState
 
 
 
@@ -244,9 +243,15 @@ def test_settings_change_animation_mode(ui_app):
     settings = ui_app.states.current
     assert isinstance(settings, SettingsState)
 
+    # Navigate to Animation Settings.
+    click(settings, settings.ANIMATION_BUTTON.center)
+
+    animation = ui_app.states.current
+    assert isinstance(animation, AnimationSettingsState)
+
     click(
-        settings,
-        settings.mode_buttons[AnimationMode.FULL].center,
+        animation,
+        animation.mode_buttons[AnimationMode.FULL].center,
     )
 
     assert (
@@ -258,19 +263,24 @@ def test_settings_change_animation_mode(ui_app):
         is AnimationMode.FULL
     )
 
-    click(settings, settings.BACK_BUTTON.center)
+    # Animation Settings -> Settings
+    click(animation, animation.BACK_BUTTON.center)
+    assert ui_app.states.current is settings
 
+    # Settings -> Game Menu
+    click(settings, settings.BACK_BUTTON.center)
     assert ui_app.states.current is menu
 
 
 def test_settings_disabled_during_animation(ui_app):
     playing = ui_app.states.current
 
-    # INSTANT completes synchronously, so switch first.
+    # Start a roll with animations enabled.
     ui_app.set_animation_settings(
         ui_app.animation_settings.__class__(
             mode=AnimationMode.FULL,
-        )
+        ),
+        playing_state=playing,
     )
 
     playing.roll()
@@ -281,30 +291,38 @@ def test_settings_disabled_during_animation(ui_app):
 
     assert menu.can_start_new_game
 
-
     click(menu, menu.SETTINGS_BUTTON.center)
 
     settings = ui_app.states.current
     assert isinstance(settings, SettingsState)
-    assert not settings.can_change_animation
+
+    click(settings, settings.ANIMATION_BUTTON.center)
+
+    animation = ui_app.states.current
+    assert isinstance(animation, AnimationSettingsState)
+    assert not animation.can_change_animation
 
     click(
-        settings,
-        settings.mode_buttons[
+        animation,
+        animation.mode_buttons[
             AnimationMode.INSTANT
         ].center,
     )
 
-    # Changing mode must be rejected.
+    # Changing mode during a roll must be rejected.
     assert (
         ui_app.animation_settings.mode
         is AnimationMode.FULL
     )
 
-    # Return to the menu and resume the same roll.
+    # Return through both settings screens.
+    click(animation, animation.BACK_BUTTON.center)
+    assert ui_app.states.current is settings
+
     click(settings, settings.BACK_BUTTON.center)
     assert ui_app.states.current is menu
 
+    # Resume the same unfinished roll.
     click(menu, menu.RESUME_BUTTON.center)
 
     assert ui_app.states.current is playing

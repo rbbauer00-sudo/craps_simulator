@@ -3,6 +3,7 @@ import pygame as pg
 
 from .base_state import BaseState
 from .animation_settings_state import AnimationSettingsState
+from .player_preferences_state import PlayerPreferencesState
 
 
 class SettingsState(BaseState):
@@ -10,7 +11,8 @@ class SettingsState(BaseState):
 
     PANEL = pg.FRect(440, 150, 400, 500)
 
-    ANIMATION_BUTTON = pg.FRect(490, 255, 300, 65)
+    PLAYER_PREFERENCES_BUTTON = pg.FRect(490, 255, 300, 65)
+    ANIMATION_BUTTON = pg.FRect(490, 345, 300, 65)
     BACK_BUTTON = pg.FRect(490, 545, 300, 60)
 
     def __init__(self, app, playing_state=None):
@@ -46,11 +48,15 @@ class SettingsState(BaseState):
         ):
             return
 
-        if self.ANIMATION_BUTTON.collidepoint(event.pos):
+        if self.PLAYER_PREFERENCES_BUTTON.collidepoint(event.pos):
+            self.open_player_preferences()
+
+        elif self.ANIMATION_BUTTON.collidepoint(event.pos):
             self.open_animation_settings()
 
         elif self.BACK_BUTTON.collidepoint(event.pos):
             self.go_back()
+
 
     def update(self, dt):
         pass
@@ -90,24 +96,33 @@ class SettingsState(BaseState):
             ),
         )
 
-        pg.draw.rect(
-            screen,
-            (65, 95, 125),
-            self.ANIMATION_BUTTON,
-            border_radius=8,
-        )
-
-        label = self.font.render(
-            "ANIMATION",
-            True,
-            (245, 245, 245),
-        )
-        screen.blit(
-            label,
-            label.get_frect(
-                center=self.ANIMATION_BUTTON.center
+        for rect, label in (
+            (
+                self.PLAYER_PREFERENCES_BUTTON,
+                "PLAYER PREFERENCES",
             ),
-        )
+            (
+                self.ANIMATION_BUTTON,
+                "ANIMATION",
+            ),
+        ):
+            pg.draw.rect(
+                screen,
+                (65, 95, 125),
+                rect,
+                border_radius=8,
+            )
+
+            text = self.font.render(
+                label,
+                True,
+                (245, 245, 245),
+            )
+
+            screen.blit(
+                text,
+                text.get_frect(center=rect.center),
+            )
 
         pg.draw.rect(
             screen,
@@ -127,4 +142,11 @@ class SettingsState(BaseState):
                 center=self.BACK_BUTTON.center
             ),
         )
-``
+
+    def open_player_preferences(self):
+        self.app.states.push(
+            PlayerPreferencesState(
+                self.app,
+                self.playing,
+            )
+        )

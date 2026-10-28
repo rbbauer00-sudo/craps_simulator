@@ -7,7 +7,7 @@ from ui.animations import (
     AnimationMode,
     AnimationSettings,
 )
-from ui.states.settings_state import SettingsState
+from ui.states.settings_state import AnimationSettingsState, SettingsState
 
 
 def test_settings_from_title():
@@ -15,24 +15,36 @@ def test_settings_from_title():
 
     try:
         title = app.states.current
-
         title.open_settings()
 
         settings = app.states.current
 
         assert isinstance(settings, SettingsState)
         assert settings.playing is None
-        assert settings.can_change_animation
 
-        settings.select_mode(AnimationMode.INSTANT)
+        # Open animation settings.
+        settings.open_animation_settings()
+        animation = app.states.current
+
+        assert isinstance(
+            animation,
+            AnimationSettingsState,
+        )
+        assert animation.playing is None
+        assert animation.can_change_animation
+
+        animation.select_mode(AnimationMode.INSTANT)
 
         assert (
             app.animation_settings.mode
             is AnimationMode.INSTANT
         )
 
+        # Return through both menu levels.
         app.states.pop()
+        assert app.states.current is settings
 
+        app.states.pop()
         assert app.states.current is title
 
     finally:
@@ -46,11 +58,15 @@ def test_title_settings_apply_to_new_game():
         title = app.states.current
 
         title.open_settings()
+
         settings = app.states.current
+        settings.open_animation_settings()
 
-        settings.select_mode(AnimationMode.MINIMAL)
+        animation = app.states.current
+        animation.select_mode(AnimationMode.MINIMAL)
 
-        app.states.pop()
+        app.states.pop()  # Animation -> Settings
+        app.states.pop()  # Settings -> Title
 
         app.new_game()
 
@@ -85,7 +101,13 @@ def test_settings_during_game(ui_app):
     assert isinstance(settings, SettingsState)
     assert settings.playing is playing
 
-    settings.select_mode(AnimationMode.FULL)
+    settings.open_animation_settings()
+    animation = ui_app.states.current
+
+    assert isinstance(animation, AnimationSettingsState)
+    assert animation.playing is playing
+
+    animation.select_mode(AnimationMode.FULL)
 
     assert (
         ui_app.animation_settings.mode
@@ -118,9 +140,13 @@ def test_animation_settings_rejected_during_roll(ui_app):
     menu.open_settings()
     settings = ui_app.states.current
 
-    assert not settings.can_change_animation
+    settings.open_animation_settings()
+    animation = ui_app.states.current
 
-    settings.select_mode(AnimationMode.INSTANT)
+    assert isinstance(animation, AnimationSettingsState)
+    assert not animation.can_change_animation
+
+    animation.select_mode(AnimationMode.INSTANT)   
 
     assert (
         ui_app.animation_settings.mode

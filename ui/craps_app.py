@@ -84,7 +84,6 @@ class CrapsApp:
         name: str = "Player 0",
         bankroll: int = 1500,
         settings: GameSettings | None = None,
-        wager_preferences: WagerPreferences | None = None,
     ) -> None:
         if bankroll <= 0:
             raise ValueError(
@@ -99,13 +98,6 @@ class CrapsApp:
             name=name,
             bankroll=bankroll,
         )
-
-        if wager_preferences is not None:
-            self.wager_preferences = WagerPreferences(
-                take_down_on_win=dict(
-                    wager_preferences.take_down_on_win
-                )
-            )
 
         self.engine = new_engine
         self.states.reset(PlayingState(self))

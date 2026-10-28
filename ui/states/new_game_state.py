@@ -4,8 +4,7 @@ import pygame as pg
 from .base_state import BaseState
 from engine import GameSettings
 from .table_rules_state import TableRulesState
-from ui.settings import WagerPreferences
-from .wager_behavior_state import WagerBehaviorState
+
 
 
 class NewGameState(BaseState):
@@ -16,8 +15,6 @@ class NewGameState(BaseState):
     BACK_BUTTON = pg.FRect(440, 605, 190, 60)
 
     RULES_BUTTON = pg.FRect(440, 455, 400, 45)
-    BEHAVIOR_BUTTON = pg.FRect(440, 505, 400, 45)
-
 
     def __init__(self, app):
         super().__init__(app)
@@ -28,12 +25,6 @@ class NewGameState(BaseState):
         self.text_selected = True
         self.caret_elapsed = 0.0
         self.game_settings = app.engine.settings
-
-        self.wager_preferences = WagerPreferences(
-            take_down_on_win=dict(
-                app.wager_preferences.take_down_on_win
-            )
-        )
 
         self.font = pg.font.SysFont(None, 28)
         self.title_font = pg.font.SysFont(
@@ -56,9 +47,9 @@ class NewGameState(BaseState):
             name=self.name.strip() or "Player 0",
             bankroll=bankroll,
             settings=self.game_settings,
-            wager_preferences=self.wager_preferences,
         )
 
+        
     def go_back(self):
         self.app.states.pop()
 
