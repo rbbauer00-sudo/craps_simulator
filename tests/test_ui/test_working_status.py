@@ -39,15 +39,20 @@ def test_place_bet_on_off(ui_app):
     original_value = wager.value
     original_bankroll = state.player.bankroll
 
-    # Select OFF lammer.
+
+    # Select ON/OFF tool.
+    assert state.selected_tool is CursorTool.ON_OFF
+    assert not state.is_animating
+    assert state.wager_at_position(sprite.rect.center) is wager
+    
     click(
         state,
-        state.tool_buttons[CursorTool.OFF].center,
+        state.tool_buttons[CursorTool.ON_OFF].center,
     )
 
-    assert state.selected_tool is CursorTool.OFF
+    assert state.selected_tool is CursorTool.ON_OFF
 
-    # Turn the wager off.
+    # First click turns the wager OFF.
     click(state, sprite.rect.center)
     state.update(1 / 60)
 
@@ -55,17 +60,21 @@ def test_place_bet_on_off(ui_app):
     assert sprite.displayed_working is False
     assert sprite.color == (85, 85, 85)
 
-    # Working-status changes do not affect money.
     assert wager.value == original_value
     assert state.player.bankroll == original_bankroll
 
-    # Select ON lammer.
-    click(
-        state,
-        state.tool_buttons[CursorTool.ON].center,
-    )
+    # Second click turns the wager back ON.
+    # No need to reselect the tool.
+    click(state, sprite.rect.center)
+    state.update(1 / 60)
 
-    assert state.selected_tool is CursorTool.ON
+    assert wager.is_working is True
+    assert sprite.displayed_working is True
+    assert sprite.color == (35, 74, 180)
+
+    assert state.selected_tool is CursorTool.ON_OFF
+    assert wager.value == original_value
+    assert state.player.bankroll == original_bankroll
 
     # Turn the wager back on.
     click(state, sprite.rect.center)
@@ -105,10 +114,10 @@ def test_pass_line_cannot_be_turned_off(ui_app, capsys):
 
     original_bankroll = state.player.bankroll
 
-    # Attempt to turn off the Pass Line.
+    # Attempt to toggle the Pass Line OFF.
     click(
         state,
-        state.tool_buttons[CursorTool.OFF].center,
+        state.tool_buttons[CursorTool.ON_OFF].center,
     )
     click(state, sprite.rect.center)
 
@@ -130,15 +139,15 @@ def test_pass_line_cannot_be_turned_off(ui_app, capsys):
 
 
 
-def test_chip_selection_clears_lammer(ui_app):
+def test_chip_selection_clears_on_off_tool(ui_app):
     state = ui_app.states.current
 
     click(
         state,
-        state.tool_buttons[CursorTool.OFF].center,
+        state.tool_buttons[CursorTool.ON_OFF].center,
     )
 
-    assert state.selected_tool is CursorTool.OFF
+    assert state.selected_tool is CursorTool.ON_OFF
 
     select_chip(state, 5)
 

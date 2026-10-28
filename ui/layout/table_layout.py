@@ -99,10 +99,9 @@ class TableLayout:
     }
 
     TOOL_BUTTONS = {
-        CursorTool.ON: pg.FRect(900, 680, 70, 55),
-        CursorTool.OFF: pg.FRect(980, 680, 70, 55),
-        CursorTool.BUY: pg.FRect(1060, 680, 85, 55),
-        CursorTool.PLACE: pg.FRect(1150, 680, 85, 55),
+        CursorTool.ON_OFF: pg.FRect(900, 680, 100, 55),
+        CursorTool.BUY: pg.FRect(1015, 680, 100, 55),
+        CursorTool.PLACE: pg.FRect(1130, 680, 100, 55),
     }
 
     @classmethod

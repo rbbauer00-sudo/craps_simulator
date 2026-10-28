@@ -6,6 +6,7 @@ from ui.state_stack import StateStack
 from ui.states.playing_state import PlayingState
 from ui.animations import AnimationSettings
 from ui.states.title_state import TitleState
+from ui.settings import WagerPreferences
 
 
 class CrapsApp:
@@ -22,6 +23,7 @@ class CrapsApp:
         pg.init()
 
         self.animation_settings = animation_settings or AnimationSettings()
+        self.wager_preferences = WagerPreferences()
     
         self.screen = pg.display.set_mode((self.WIDTH, self.HEIGHT))
         pg.display.set_caption("Craps Simulator")
@@ -81,19 +83,28 @@ class CrapsApp:
         name: str = "Player 0",
         bankroll: int = 1500,
         settings: GameSettings | None = None,
+        wager_preferences: WagerPreferences | None = None,
     ) -> None:
         if bankroll <= 0:
             raise ValueError(
                 "Starting bankroll must be positive."
             )
 
-        self.engine = GameEngine(
+        new_engine = GameEngine(
             settings=settings or self.engine.settings,
         )
 
-        self.engine.add_player(
+        new_engine.add_player(
             name=name,
             bankroll=bankroll,
         )
 
+        if wager_preferences is not None:
+            self.wager_preferences = WagerPreferences(
+                take_down_on_win=dict(
+                    wager_preferences.take_down_on_win
+                )
+            )
+
+        self.engine = new_engine
         self.states.reset(PlayingState(self))

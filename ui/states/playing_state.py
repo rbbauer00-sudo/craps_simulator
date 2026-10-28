@@ -3,7 +3,7 @@ import pygame as pg
 from .base_state import BaseState
 from .roll_phase import RollPhase
 from pygame.constants import *
-from engine import GameRollResult, Wager, defs, WagerDefinition, WagerType, GameRuleViolation, VigSetting, InsufficientFundsError
+from engine import GameRollResult, Wager, Resolution, WagerDefinition, WagerType, GameRuleViolation, VigSetting, InsufficientFundsError
 from ui.game_elements import DiceSprite, PuckSprite, WagerSprite, PlayerSprite, ChipSprite, VigSprite
 from ui.animations.wager_animation_controller import WagerAnimationController
 from ui.animations.animation_settings import AnimationMode
@@ -13,6 +13,7 @@ from ui.layout.table_layout import TableLayout
 from ui.game_elements.hop_tray import HopTray
 from ui.states.hop_bet_state import HopBetState
 from .game_menu_state import GameMenuState
+from ui.game_elements.working_lammer import draw_working_lammer
 
 
 from typing import TYPE_CHECKING
@@ -95,6 +96,10 @@ class PlayingState(BaseState):
 
         self.hop_tray = HopTray(self.engine)
 
+        self.lammer_font = pg.font.SysFont(
+            None, 17, bold=True
+        )
+
         self.dice_sprite = DiceSprite(
             size=50,
             topleft=self.layout.DICE_POSITION,
@@ -137,6 +142,16 @@ class PlayingState(BaseState):
             settings=app.animation_settings,
         )
 
+
+    @property
+    def displayed_point(self) -> int | None:
+        if (
+            self.puck_sprite.is_animating
+            and self.current_roll is not None
+        ):
+            return self.current_roll.point_before
+
+        return self.puck_sprite.point
 
     @property
     def is_animating(self) -> bool:
@@ -184,6 +199,25 @@ class PlayingState(BaseState):
 
 
     def finish_roll(self) -> None:
+        if self.current_roll is None:
+            raise RuntimeError("No current roll to finish.")
+
+        preferences = self.app.wager_preferences
+
+        for result in self.current_roll.wager_results:
+            wager = result.wager
+
+            if result.resolution is not Resolution.WIN:
+                continue
+
+            if wager not in self.engine.wagers:
+                continue
+
+            if not preferences.should_take_down(wager):
+                continue
+
+            self.take_down_wager(wager)
+
         self.current_roll = None
         self.roll_phase = RollPhase.READY
     
@@ -517,15 +551,12 @@ class PlayingState(BaseState):
                 )
                 self.change_wager(amount, wager=wager)
 
-            case CursorTool.ON:
-                self.engine.set_wager_working_status(
-                    wager, True
-                )
-
-            case CursorTool.OFF:
-                self.engine.set_wager_working_status(
-                    wager, False
-                )
+            case CursorTool.ON_OFF:
+                if button == 1:
+                    self.engine.set_wager_working_status(
+                        wager,
+                        not wager.is_working,
+                    )
 
             case CursorTool.BUY:
                 self.engine.set_wager_buy_status(wager, True)
@@ -713,16 +744,33 @@ class PlayingState(BaseState):
             )
 
         for tool, rect in self.tool_buttons.items():
+            label = (
+                "ON/OFF"
+                if tool is CursorTool.ON_OFF
+                else tool.name
+            )
+
             self.draw_selector(
                 screen,
                 rect,
-                tool.name,
+                label,
                 selected=tool is self.selected_tool,
             )
 
         self.hop_tray.draw(screen)
 
         self.visible_sprites.draw(screen)
+
+        for wager, sprite in self.wager_sprites.items():
+            if wager not in self.engine.wagers:
+                continue
+
+            draw_working_lammer(
+                screen,
+                sprite,
+                self.displayed_point,
+                self.lammer_font,
+            )
 
         for sprite in self.vig_sprites.values():
             screen.blit(sprite.image, sprite.rect)

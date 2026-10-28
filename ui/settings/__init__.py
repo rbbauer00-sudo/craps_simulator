@@ -1,0 +1,1 @@
+from .wager_preferences import WagerPreferences

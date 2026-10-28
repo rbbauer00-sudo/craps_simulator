@@ -4,16 +4,20 @@ import pygame as pg
 from .base_state import BaseState
 from engine import GameSettings
 from .table_rules_state import TableRulesState
+from ui.settings import WagerPreferences
+from .wager_behavior_state import WagerBehaviorState
 
 
 class NewGameState(BaseState):
     NAME_RECT = pg.FRect(440, 285, 400, 55)
     BANKROLL_RECT = pg.FRect(440, 385, 400, 55)
 
-    START_BUTTON = pg.FRect(650, 560, 190, 60)
-    BACK_BUTTON = pg.FRect(440, 560, 190, 60)
+    START_BUTTON = pg.FRect(650, 605, 190, 60)
+    BACK_BUTTON = pg.FRect(440, 605, 190, 60)
 
     RULES_BUTTON = pg.FRect(440, 455, 400, 45)
+    BEHAVIOR_BUTTON = pg.FRect(440, 505, 400, 45)
+
 
     def __init__(self, app):
         super().__init__(app)
@@ -24,6 +28,12 @@ class NewGameState(BaseState):
         self.text_selected = True
         self.caret_elapsed = 0.0
         self.game_settings = app.engine.settings
+
+        self.wager_preferences = WagerPreferences(
+            take_down_on_win=dict(
+                app.wager_preferences.take_down_on_win
+            )
+        )
 
         self.font = pg.font.SysFont(None, 28)
         self.title_font = pg.font.SysFont(
@@ -46,6 +56,7 @@ class NewGameState(BaseState):
             name=self.name.strip() or "Player 0",
             bankroll=bankroll,
             settings=self.game_settings,
+            wager_preferences=self.wager_preferences,
         )
 
     def go_back(self):
@@ -66,6 +77,11 @@ class NewGameState(BaseState):
             elif self.RULES_BUTTON.collidepoint(event.pos):
                 self.app.states.push(
                     TableRulesState(self.app, self)
+                )
+
+            elif self.BEHAVIOR_BUTTON.collidepoint(event.pos):
+                self.app.states.push(
+                    WagerBehaviorState(self.app, self)
                 )
 
             elif self.START_BUTTON.collidepoint(event.pos):
@@ -297,6 +313,26 @@ class NewGameState(BaseState):
                     width=2,
                 )
 
+        pg.draw.rect(
+            screen,
+            (65, 95, 125),
+            self.BEHAVIOR_BUTTON,
+            border_radius=8,
+        )
+
+        behavior_text = self.font.render(
+            "WAGER BEHAVIOR",
+            True,
+            (245, 245, 245),
+        )
+
+        screen.blit(
+            behavior_text,
+            behavior_text.get_frect(
+                center=self.BEHAVIOR_BUTTON.center,
+            ),
+        )
+
 
         for rect, label in (
             (self.BACK_BUTTON, "BACK"),
@@ -328,7 +364,7 @@ class NewGameState(BaseState):
             screen.blit(
                 error_text,
                 error_text.get_frect(
-                    center=(640, 530)
+                    center=(640, 575)
                 ),
             )
 
