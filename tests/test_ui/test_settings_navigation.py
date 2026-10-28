@@ -7,6 +7,7 @@ from ui.states.player_preferences_state import (
     PlayerPreferencesState,
 )
 from .helpers import click
+from ui.states.wager_behavior_state import WagerBehaviorState
 
 
 def test_settings_opens_animation(ui_app):
@@ -127,12 +128,23 @@ def test_player_preferences_preserves_game(ui_app):
 
     preferences = app.states.current
 
-    # Disabled entries should not open anything yet.
+    # Wager Behavior should open its settings screen.
     click(
         preferences,
         preferences.WAGER_BEHAVIOR_BUTTON.center,
     )
+
+    behavior = app.states.current
+    assert isinstance(behavior, WagerBehaviorState)
+
+    # Return to Player Preferences.
+    click(
+        behavior,
+        behavior.BACK_BUTTON.center,
+    )
+
     assert app.states.current is preferences
+ 
 
     click(
         preferences,

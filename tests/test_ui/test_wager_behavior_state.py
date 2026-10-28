@@ -138,4 +138,3 @@ def test_behavior_disabled_during_animation(ui_app):
         WagerType.FIELD,
         False,
     )
-``

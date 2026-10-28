@@ -49,7 +49,7 @@ class NewGameState(BaseState):
             settings=self.game_settings,
         )
 
-        
+
     def go_back(self):
         self.app.states.pop()
 
@@ -68,11 +68,6 @@ class NewGameState(BaseState):
             elif self.RULES_BUTTON.collidepoint(event.pos):
                 self.app.states.push(
                     TableRulesState(self.app, self)
-                )
-
-            elif self.BEHAVIOR_BUTTON.collidepoint(event.pos):
-                self.app.states.push(
-                    WagerBehaviorState(self.app, self)
                 )
 
             elif self.START_BUTTON.collidepoint(event.pos):
@@ -303,26 +298,6 @@ class NewGameState(BaseState):
                     (caret_x, rect.centery + 14),
                     width=2,
                 )
-
-        pg.draw.rect(
-            screen,
-            (65, 95, 125),
-            self.BEHAVIOR_BUTTON,
-            border_radius=8,
-        )
-
-        behavior_text = self.font.render(
-            "WAGER BEHAVIOR",
-            True,
-            (245, 245, 245),
-        )
-
-        screen.blit(
-            behavior_text,
-            behavior_text.get_frect(
-                center=self.BEHAVIOR_BUTTON.center,
-            ),
-        )
 
 
         for rect, label in (
