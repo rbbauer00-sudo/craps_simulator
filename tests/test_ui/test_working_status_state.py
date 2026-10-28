@@ -5,6 +5,50 @@ from ui.states.working_status_state import WorkingStatusState
 
 from .helpers import click, select_chip, run_until_idle
 
+import pygame as pg
+
+from ui.craps_app import CrapsApp
+from ui.states.settings_state import SettingsState
+from ui.states.player_preferences_state import PlayerPreferencesState
+
+
+def test_working_preferences_from_title():
+    app = CrapsApp(start_on_title=True)
+
+    try:
+        title = app.states.current
+        title.open_settings()
+
+        settings = app.states.current
+        assert isinstance(settings, SettingsState)
+
+        click(
+            settings,
+            settings.PLAYER_PREFERENCES_BUTTON.center,
+        )
+
+        preferences = app.states.current
+        assert isinstance(preferences, PlayerPreferencesState)
+
+        click(
+            preferences,
+            preferences.WORKING_STATUS_BUTTON.center,
+        )
+
+        working = app.states.current
+        assert isinstance(working, WorkingStatusState)
+
+        click(working, working.PLACE_BUTTON.center)
+
+        assert app.working_preferences.place_on_comeout
+
+        app.new_game()
+
+        assert app.working_preferences.place_on_comeout
+
+    finally:
+        pg.quit()
+
 
 def open_working(ui_app, playing=None):
     state = WorkingStatusState(ui_app, playing)
@@ -127,3 +171,5 @@ def test_rejected_during_animation(ui_app):
     click(state, state.HARDWAY_BUTTON.center)
 
     assert ui_app.working_preferences.hardway_on_comeout
+
+

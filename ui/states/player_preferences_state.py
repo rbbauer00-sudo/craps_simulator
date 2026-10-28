@@ -91,8 +91,6 @@ class PlayerPreferencesState(BaseState):
             ),
         )
 
-        # These entries will become active as
-        # their configuration screens are connected.
         for rect, label, enabled in (
             (
                 self.WAGER_BEHAVIOR_BUTTON,
